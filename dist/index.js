@@ -21895,7 +21895,13 @@ var NUMBER_DEFAULTS = {
   /** The smallest the cover's exam lines are set; a longer title overflows, reported. */
   "exam-floor": 56,
   /** The largest the cover's exam lines are set, for a short title. */
-  "exam-ceiling": 112
+  "exam-ceiling": 112,
+  /** The statement's size range; its options follow it, at the reference's 37.5 to 40. */
+  "statement-floor": 28,
+  "statement-ceiling": 48,
+  /** The answer's explanation's size range. */
+  "explanation-floor": 32,
+  "explanation-ceiling": 76
 };
 var FACE2 = { family: "CircularXX", source: "system" };
 var LIGHT = 300;
@@ -22058,12 +22064,13 @@ var STATEMENT = {
   bodyWidth: 810,
   /** From the statement's last capitals to the first option's. */
   bodyToOptions: 99,
-  optionX: 117,
-  /** Where an option's words start, its letter hanging left of them. */
-  optionTextX: 163,
+  /** An option's letter stands on the statement's left edge (the maintainer, 2026-10-30). */
+  optionX: 131,
+  /** Where an option's words start, after its letter. */
+  optionTextX: 177,
   optionSize: 37.5,
   optionLineHeight: 1.2,
-  optionWidth: 800,
+  optionWidth: 786,
   /** From one option's last line's capitals to the next option's first. */
   optionPitch: 74.25,
   /** The lowest an option may end: 40 px over the arrow. */
@@ -22076,7 +22083,7 @@ function statement(context, ink, lift) {
   const body = firstOption < 0 ? all : all.slice(0, firstOption);
   const options = firstOption < 0 ? [] : all.slice(firstOption);
   const continued = context.adjustments["continua"] === true;
-  const nodes = continued ? [] : [
+  const label = continued ? [] : [
     textAt("rotulo", STATEMENT_LABEL, {
       x: STATEMENT.x,
       capTop: STATEMENT.labelTop,
@@ -22086,58 +22093,80 @@ function statement(context, ink, lift) {
     })
   ];
   const bodyTop = continued ? STATEMENT.labelTop : STATEMENT.labelTop + STATEMENT.labelToBody;
-  const bodyStyle = { font: FACE2, size: STATEMENT.bodySize, weight: LIGHT, color: ink("body-ink") };
-  const bodyDraft = richAt("enunciado", body, bodyStyle, {
-    x: STATEMENT.x,
-    capTop: bodyTop,
-    lineHeight: STATEMENT.bodyLineHeight,
-    width: STATEMENT.bodyWidth
-  });
-  let foot = bodyTop - FRAME.gap;
-  let optionTop = bodyTop;
-  if (body.length > 0) {
-    nodes.push(bodyDraft);
-    const count = lineCount(context, bodyDraft, body, STATEMENT.bodySize, STATEMENT.bodyWidth);
-    const lastTop = bodyTop + (count - 1) * STATEMENT.bodySize * STATEMENT.bodyLineHeight;
-    foot = lastTop + STATEMENT.bodySize * CAP_HEIGHT;
-    optionTop = lastTop + STATEMENT.bodyToOptions;
-  }
   const picture = pictureOf(context);
-  if (picture !== void 0) {
-    const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
-    nodes.push(...framed.nodes);
-    foot = framed.foot;
-    optionTop = foot + FRAME.gap;
-  }
-  for (const [index, line] of options.entries()) {
-    const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
-    const words = textAt(`alternativa-${index + 1}`, rest, {
-      x: STATEMENT.optionTextX,
-      capTop: optionTop,
-      size: STATEMENT.optionSize,
-      weight: LIGHT,
-      color: ink("body-ink"),
-      lineHeight: STATEMENT.optionLineHeight,
-      width: STATEMENT.optionWidth
-    });
-    nodes.push(
-      textAt(`letra-${index + 1}`, letter, {
-        x: STATEMENT.optionX,
+  const layout = (size) => {
+    const scale = size / STATEMENT.bodySize;
+    const optionSize = STATEMENT.optionSize * scale;
+    const nodes = [];
+    let foot = bodyTop - FRAME.gap;
+    let optionTop = bodyTop;
+    if (body.length > 0) {
+      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+      const draft = richAt("enunciado", body, style2, {
+        x: STATEMENT.x,
+        capTop: bodyTop,
+        lineHeight: STATEMENT.bodyLineHeight,
+        width: STATEMENT.bodyWidth
+      });
+      nodes.push(draft);
+      const count = lineCount(context, draft, body, size, STATEMENT.bodyWidth);
+      const lastTop = bodyTop + (count - 1) * size * STATEMENT.bodyLineHeight;
+      foot = lastTop + size * CAP_HEIGHT;
+      optionTop = lastTop + STATEMENT.bodyToOptions * scale;
+    }
+    if (picture !== void 0) {
+      const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
+      nodes.push(...framed.nodes);
+      foot = framed.foot;
+      optionTop = foot + FRAME.gap;
+    }
+    const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
+    const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+    for (const [index, line] of options.entries()) {
+      const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
+      const words = textAt(`alternativa-${index + 1}`, rest, {
+        x: textX,
         capTop: optionTop,
-        size: STATEMENT.optionSize,
-        weight: MEDIUM,
-        color: ink("title-ink"),
-        lineHeight: STATEMENT.optionLineHeight
-      }),
-      words
-    );
-    const count = lineCount(context, words, [rest], STATEMENT.optionSize, STATEMENT.optionWidth);
-    const lastTop = optionTop + (count - 1) * STATEMENT.optionSize * STATEMENT.optionLineHeight;
-    foot = lastTop + STATEMENT.optionSize * CAP_HEIGHT;
-    optionTop = lastTop + STATEMENT.optionPitch;
+        size: optionSize,
+        weight: LIGHT,
+        color: ink("body-ink"),
+        lineHeight: STATEMENT.optionLineHeight,
+        width
+      });
+      nodes.push(
+        textAt(`letra-${index + 1}`, letter, {
+          x: STATEMENT.optionX,
+          capTop: optionTop,
+          size: optionSize,
+          weight: MEDIUM,
+          color: ink("title-ink"),
+          lineHeight: STATEMENT.optionLineHeight
+        }),
+        words
+      );
+      const count = lineCount(context, words, [rest], optionSize, width);
+      const lastTop = optionTop + (count - 1) * optionSize * STATEMENT.optionLineHeight;
+      foot = lastTop + optionSize * CAP_HEIGHT;
+      optionTop = lastTop + STATEMENT.optionPitch * scale;
+    }
+    return { nodes, foot };
+  };
+  const laid = largestThatFits(context, "statement", layout, STATEMENT.limit - lift);
+  return [...label, ...laid.nodes];
+}
+function largestThatFits(context, name, layout, limit) {
+  const floor = numberValue(context, `${name}-floor`, NUMBER_DEFAULTS[`${name}-floor`]);
+  const ceiling = Math.max(
+    floor,
+    numberValue(context, `${name}-ceiling`, NUMBER_DEFAULTS[`${name}-ceiling`])
+  );
+  for (let size = Math.floor(ceiling); size >= floor; size -= 1) {
+    const laid2 = layout(size);
+    if (laid2.foot <= limit) return laid2;
   }
-  reportOverflow(context.report, foot, STATEMENT.limit - lift);
-  return nodes;
+  const laid = layout(floor);
+  reportOverflow(context.report, laid.foot, limit);
+  return laid;
 }
 var FRAME = {
   w: 835,
@@ -22235,29 +22264,32 @@ function answer(context, ink, lift) {
   const first = continued ? void 0 : written[0];
   const rest = continued ? written : written.slice(1);
   const bodyTop = continued ? ANSWER.labelTop : ANSWER.bodyTop;
-  const bodyStyle = { font: FACE2, size: ANSWER.bodySize, weight: LIGHT, color: ink("body-ink") };
-  const body = richAt("explicacao", rest, bodyStyle, {
-    x: ANSWER.x,
-    capTop: bodyTop,
-    lineHeight: ANSWER.bodyLineHeight,
-    width: ANSWER.bodyWidth
-  });
-  const nodes = [];
-  let foot = bodyTop - FRAME.gap;
-  if (rest.length > 0) {
-    nodes.push(body);
-    const count = lineCount(context, body, rest, ANSWER.bodySize, ANSWER.bodyWidth);
-    const lastTop = bodyTop + (count - 1) * ANSWER.bodySize * ANSWER.bodyLineHeight;
-    foot = lastTop + ANSWER.bodySize * CAP_HEIGHT;
-  }
   const picture = pictureOf(context);
-  if (picture !== void 0) {
-    const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
-    nodes.push(...framed.nodes);
-    foot = framed.foot;
-  }
-  reportOverflow(context.report, foot, ANSWER.limit - lift);
-  if (continued) return nodes;
+  const layout = (size) => {
+    const nodes = [];
+    let foot = bodyTop - FRAME.gap;
+    if (rest.length > 0) {
+      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+      const body = richAt("explicacao", rest, style2, {
+        x: ANSWER.x,
+        capTop: bodyTop,
+        lineHeight: ANSWER.bodyLineHeight,
+        width: ANSWER.bodyWidth
+      });
+      nodes.push(body);
+      const count = lineCount(context, body, rest, size, ANSWER.bodyWidth);
+      const lastTop = bodyTop + (count - 1) * size * ANSWER.bodyLineHeight;
+      foot = lastTop + size * CAP_HEIGHT;
+    }
+    if (picture !== void 0) {
+      const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
+      nodes.push(...framed.nodes);
+      foot = framed.foot;
+    }
+    return { nodes, foot };
+  };
+  const laid = largestThatFits(context, "explanation", layout, ANSWER.limit - lift);
+  if (continued) return laid.nodes;
   return [
     textAt("rotulo", ANSWER_LABEL, {
       x: ANSWER.x,
@@ -22273,7 +22305,7 @@ function answer(context, ink, lift) {
       weight: BLACK,
       color: ink("title-ink")
     }),
-    ...nodes
+    ...laid.nodes
   ];
 }
 var SIGN_OFF = {
@@ -22286,6 +22318,8 @@ var SIGN_OFF = {
   paragraphWidth: 700
 };
 function signOff(context, ink) {
+  const value = context.slots["fecho"]?.value;
+  const parsed = value?.kind === "rich-text" ? lines(value.text).filter((line) => plain(line).trim() !== "") : [];
   const written = slotText(context, "fecho", "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
   const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
   const style2 = {
@@ -22295,6 +22329,13 @@ function signOff(context, ink) {
     color: ink("closing-ink")
   };
   const words = written.length === 0 ? `**${DEFAULT_SIGN_OFF_BOLD}**${DEFAULT_SIGN_OFF_REST}` : paragraph.join("\n");
+  const box = {
+    x: SIGN_OFF.paragraphX,
+    capTop: SIGN_OFF.paragraphTop,
+    lineHeight: SIGN_OFF.paragraphLineHeight,
+    width: SIGN_OFF.paragraphWidth,
+    align: "center"
+  };
   return [
     textAt("fecho-titulo", title, {
       x: 0,
@@ -22305,14 +22346,7 @@ function signOff(context, ink) {
       width: SLIDE_WIDTH,
       align: "center"
     }),
-    textRuns("fecho-texto", boldRuns(words, style2), {
-      x: SIGN_OFF.paragraphX,
-      capTop: SIGN_OFF.paragraphTop,
-      size: SIGN_OFF.paragraphSize,
-      lineHeight: SIGN_OFF.paragraphLineHeight,
-      width: SIGN_OFF.paragraphWidth,
-      align: "center"
-    }),
+    parsed.length > 1 ? richAt("fecho-texto", parsed.slice(1), style2, box) : textRuns("fecho-texto", boldRuns(words, style2), { ...box, size: style2.size }),
     ...likeBar(ink)
   ];
 }

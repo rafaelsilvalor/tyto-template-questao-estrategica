@@ -22,7 +22,7 @@ templates:
   questao-estrategica:
     source:
       git: https://github.com/rafaelsilvalor/tyto-template-questao-estrategica.git
-      ref: v0.1.0
+      ref: v0.2.0
 ```
 
 Tyto fetches the tag the next time it loads templates, or now with `tyto plugin sync`, and asks
@@ -72,10 +72,11 @@ selo: ./selo.png
 - **The cover**, `{capa}`: its lines name the exam, set at the largest size between
   `exam-floor` and `exam-ceiling` that keeps them in their room — a short title grows, a long
   one shrinks, and one that does not fit at the floor renders with `W_TEMPLATE_OVERFLOW`. The
-  words over the rule are `Questão de fixação` unless the brief writes `titulo:`; `fundo:` is
+  words over the rule are `Questão de fixação` unless the brief writes `::titulo`; `fundo:` is
   the picture under the cover, full bleed, and without it the cover is flat `deep`.
 - **The statement**, an unmarked `::lamina`: its lines up to the first `A)` are the statement,
-  and every `X) …` line one option, its letter hanging left of the words.
+  and every `X) …` line one option, its letter on the statement's left edge. The statement is
+  sized to its room, as the cover is; the answer's explanation too.
 - **The answer**, `{resposta}`: its first line in large (`Letra B`), the rest the explanation.
 - **A slide that goes on** from the one before, `{continua}` beside the mark (an unmarked
   statement or `{resposta, continua}`): no label, its words start where the label would. A
@@ -87,7 +88,7 @@ selo: ./selo.png
   that proportion makes it at the frame's width, and the picture is fitted whole inside.
   **Tyto hands a template no image's size**, so the slide says it; a picture whose shape differs
   from the proportion written shows paper beside it.
-- **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `fecho:`, its
+- **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `::fecho`, its
   first line the title and the rest the paragraph, `**bold**` kept.
 - **The seal**, `selo: ./selo.png`, 1080 × 140, glued to the foot of the last slide; that
   slide's number rises by the band.
@@ -104,13 +105,16 @@ which Tyto has no face for: it is Black (900), the maintainer's call.
 
 ## What a configuration may change
 
-`templates/questao-estrategica/manifest.yaml` declares eleven `values` (Tyto ADR 0153): nine
+`templates/questao-estrategica/manifest.yaml` declares fifteen `values` (Tyto ADR 0153): nine
 colours — the cover's `deep`, `accent` and `on-deep`, the `paper`, the `title-ink`, `body-ink`
-and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and two lengths, `exam-floor`
-(56) and `exam-ceiling` (112), between which the cover's exam lines are sized. Each colour is
-the reference art's, the accent included (the reference's `#1d9ad5`, not the brand kit's), so
-with nothing configured the carousel draws as the reference does. A configuration changes a
-value, never which pieces are drawn (Tyto ADR 0151).
+and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and six lengths, three pairs of
+floor and ceiling between which the words are sized to their room: `exam-floor`/`exam-ceiling`
+(56/112) for the cover's exam lines, `statement-floor`/`statement-ceiling` (28/48) for the
+statement, its options following it, and `explanation-floor`/`explanation-ceiling` (32/76) for
+the answer's explanation. Each is the largest size whose words (and picture) end over the arrow,
+so short words grow and long ones shrink. Each colour is the reference art's, the accent included
+(the reference's `#1d9ad5`, not the brand kit's). A configuration changes a value, never which
+pieces are drawn (Tyto ADR 0151).
 
 ## Development
 

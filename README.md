@@ -110,7 +110,7 @@ colours — the cover's `deep`, `accent` and `on-deep`, the `paper`, the `title-
 and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and six lengths, three pairs of
 floor and ceiling between which the words are sized to their room: `exam-floor`/`exam-ceiling`
 (56/112) for the cover's exam lines, `statement-floor`/`statement-ceiling` (28/48) for the
-statement, its options following it, and `explanation-floor`/`explanation-ceiling` (40/76) for
+statement, its options following it, and `explanation-floor`/`explanation-ceiling` (32/76) for
 the answer's explanation. Each is the largest size whose words (and picture) end over the arrow,
 so short words grow and long ones shrink. Each colour is the reference art's, the accent included
 (the reference's `#1d9ad5`, not the brand kit's). A configuration changes a value, never which

@@ -84,5 +84,5 @@ values:
   # the statement, at the reference's 37.5 to 40.
   statement-floor: { type: length, default: 28, min: 20, max: 48 }
   statement-ceiling: { type: length, default: 48, min: 28, max: 72 }
-  explanation-floor: { type: length, default: 40, min: 24, max: 76 }
+  explanation-floor: { type: length, default: 32, min: 24, max: 76 }
   explanation-ceiling: { type: length, default: 76, min: 40, max: 112 }

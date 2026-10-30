@@ -89,7 +89,7 @@ export const NUMBER_DEFAULTS = {
   'statement-floor': 28,
   'statement-ceiling': 48,
   /** The answer's explanation's size range. */
-  'explanation-floor': 40,
+  'explanation-floor': 32,
   'explanation-ceiling': 76,
 } as const;
 

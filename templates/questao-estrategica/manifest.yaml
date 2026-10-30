@@ -1,0 +1,43 @@
+name: questao-estrategica
+version: 0.1.0
+brand: marinho
+description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
+# Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
+# CircularXX is licensed: it crosses only under the manifest's `font:CircularXX`, approved at
+# install. `tests/faces.test.ts` holds this list equal to the faces the examples draw.
+faces:
+  - { family: CircularXX, weight: 400 }
+  - { family: CircularXX, weight: 700 }
+  - { family: CircularXX, weight: 900 }
+fonts:
+  CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
+formats: [grid]
+slots:
+  # The words over the cover's rule. Optional: without it the template draws its default.
+  titulo: { type: rich-text, max: 40 }
+  # The cover's picture, full bleed under the words. In the frontmatter: `fundo: ./fundo.png`.
+  # Without it the cover is the deep colour, flat.
+  fundo: { type: image }
+  # A picture the statement needs (a chart, a formula), framed between the statement and its
+  # options. In the frontmatter: `imagem: ./figura.png`.
+  imagem: { type: image }
+  # The sign-off slide's words: its first line the title, the rest the paragraph. Optional.
+  fecho: { type: rich-text, max: 160 }
+  # One slide each, in order. The cover is `::lamina {capa}` (its lines name the exam), the
+  # answer `::lamina {resposta}` (its first line the answer, the rest the explanation) and the
+  # sign-off `::lamina {fecho}`, empty. An unmarked `::lamina` is the statement: its lines up to
+  # the first `A)` are the statement, and every `X) ...` line is one option. `max` counts slides.
+  lamina: { type: rich-text, repeat: true, min: 1, max: 8 }
+adjustments:
+  capa: { type: flag, applies: [lamina] }
+  resposta: { type: flag, applies: [lamina] }
+  fecho: { type: flag, applies: [lamina] }
+# What a configuration may change (Tyto ADR 0153). Each default is the reference art's, and
+# `tests/values.test.ts` pins them equal to the ones the code falls back to.
+values:
+  # The cover's colour where the brief gives it no picture.
+  deep: { type: color, default: '#00153d' }
+  # The paper of every slide but the cover.
+  paper: { type: color, default: '#ffffff' }
+  # The words on the paper.
+  ink: { type: color, default: '#081c3d' }

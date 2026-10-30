@@ -1,0 +1,24 @@
+---
+template: questao-estrategica
+formats: [grid]
+---
+// One question in invented copy: an invented exam board, body and statement.
+
+::lamina {capa}
+  QUINTEX – 2026
+  Prefeitura de
+  Vale Alto/XY
+
+::lamina
+  De acordo com o regulamento fictício do município de Vale Alto, qual documento organiza o atendimento aos estudantes que precisam de apoio na escola?
+  A) O calendário anual.
+  B) O plano da escola.
+  C) O caderno de chamada.
+  D) O mapa das salas de aula.
+  E) O registro de visitas ao Sistema Municipal de Bibliotecas.
+
+::lamina {resposta}
+  Letra B
+  O regulamento fictício manda que o plano da escola organize o apoio, assim como os demais serviços da rede.
+
+::lamina {fecho}

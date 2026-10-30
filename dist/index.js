@@ -22262,14 +22262,29 @@ var FRAME = {
 };
 var FRAME_X = 123;
 var FRAME_SHAPES = { widest: 3, tallest: 1 };
-var FALLBACK_SHAPE = 2;
+var PROPORTIONS = {
+  "3x1": 3,
+  "5x2": 2.5,
+  "7x3": 7 / 3,
+  "2x1": 2,
+  "16x9": 16 / 9,
+  "3x2": 1.5,
+  "4x3": 4 / 3,
+  "1x1": 1
+};
+var DEFAULT_PROPORTION = "2x1";
 function pictureOf(context) {
-  const value = context.slots["imagem"]?.value;
-  return value?.kind === "image" ? value.asset : void 0;
+  const which = context.adjustments["imagem"];
+  if (typeof which !== "string") return void 0;
+  const value = context.slots[`imagem-${which}`]?.value;
+  if (value?.kind !== "image") return void 0;
+  const written = context.adjustments["proporcao"];
+  const proportion = typeof written === "string" && written in PROPORTIONS ? written : DEFAULT_PROPORTION;
+  return { asset: value.asset, written: PROPORTIONS[proportion] };
 }
 function framedImage(picture, at2, ink) {
   const width = FRAME.w - FRAME.side - FRAME.border;
-  const natural = imageHeight(picture, width, width / FALLBACK_SHAPE);
+  const natural = imageHeight(picture.asset, width, width / picture.written);
   const clamped = Math.min(
     width / FRAME_SHAPES.tallest,
     Math.max(width / FRAME_SHAPES.widest, natural)
@@ -22304,7 +22319,7 @@ function framedImage(picture, at2, ink) {
         transform: { x: at2.x, y: at2.y }
       }),
       rect({ name: "fundo-imagem", size, fill: solid(ink("paper")), transform: inside }),
-      image({ name: "imagem", asset: picture, size, fit: "contain", transform: inside }),
+      image({ name: "imagem", asset: picture.asset, size, fit: "contain", transform: inside }),
       corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
     ],

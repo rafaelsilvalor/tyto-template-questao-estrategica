@@ -48,6 +48,7 @@ marks what each slide is:
 template: questao-estrategica
 formats: [grid]
 fundo: ./fundo.png
+imagem-1: ./grafico.png
 selo: ./selo.png
 ---
 
@@ -56,11 +57,10 @@ selo: ./selo.png
   Prefeitura de
   Vale Alto/XY
 
-::lamina
+::lamina {imagem: 1}
   O gráfico mostra as matrículas de quatro escolas. Qual teve mais?
   A) A primeira.
   B) A segunda.
-::imagem ./grafico.png
 
 ::lamina {resposta}
   Letra B
@@ -82,15 +82,14 @@ selo: ./selo.png
   statement or `{resposta, continua}`): no label, its words start where the label would. A
   question may have as many middle slides as its content needs; every slide is numbered
   `01 I 06` from its place.
-- **A picture** on a statement or an answer: `::imagem ./grafico.png`, written after the slide's
-  `::lamina` and its lines, belongs to that slide (Tyto ADR 0160) and is drawn under its words,
-  in the reference's frame. One per slide, on as many slides as the question needs; a slide
-  without one draws no frame. The frame is as tall as the picture's own shape makes it at the
-  frame's width (Tyto reads the size off the file, ADR 0158), from a 3:1 band to a square: a
-  wider picture gets a 3:1 frame and a taller one a square, the picture fitted whole inside with
-  paper beside it. A picture Tyto could not measure gets a 2:1 frame. It needs Tyto 0.12 (the
-  desktop app) or later; v0.2.0's `imagem-1` … `imagem-4` and `{imagem: N, proporcao: …}` are
-  gone.
+- **A picture** on a statement or an answer: `{imagem: N}` shows the brief's `imagem-N` (1 to 4)
+  under the slide's words, in the reference's frame. The frame is as tall as the picture's own
+  shape makes it at the frame's width (Tyto reads the size off the file, ADR 0158; Tyto 0.12 or
+  later), from a 3:1 band to a square: a wider picture gets a 3:1 frame and a taller one a
+  square, the picture fitted whole inside with paper beside it.
+- **`{proporcao: …}` is no longer needed.** Briefs that write it still render, without a
+  warning: the file's size wins, and the proportion written — `3x1`, `5x2`, `7x3`, `2x1`
+  (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture Tyto could not measure.
 - **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `::fecho`, its
   first line the title and the rest the paragraph, `**bold**` kept.
 - **The seal**, `selo: ./selo.png`, 1080 × 140, glued to the foot of the last slide; that
@@ -139,8 +138,8 @@ The tests, all without Tyto:
 
 - `src/template.test.ts`: the carousel's rules on the scene — which slide each mark makes, the
   numbering and the arrows, every text starting inside its slide, the statement split at its
-  first option, a picture framed as tall as its shape on a statement and an answer, held
-  between 3:1 and square, the
+  first option, a picture framed as tall as its file's shape on a statement and an answer, held
+  between 3:1 and square, `{proporcao}` used only when the file has no size, the
   continued slides without a label, the cover's exam lines sized between floor and ceiling,
   the overflow warning, the seal on the last slide and the number lifted by it.
 - `tests/examples.test.ts`: the example brief compiled as Tyto compiles it, through

@@ -470,35 +470,64 @@ const FRAME_X = 123;
  * because a frame taller than wide leaves the statement no room on a 1080×1350 slide.
  */
 export const FRAME_SHAPES = { widest: 3, tallest: 1 } as const;
-/** The frame's shape when the host could not measure the picture: v0.2.0's default, 2:1. */
-const FALLBACK_SHAPE = 2;
 
 /**
- * The image this middle slide shows: the brief's `::imagem` written after the slide's
- * `::lamina` (Tyto ADR 0160). Nothing when the slide has none.
+ * The proportions a slide may still write, `{proporcao: 2x1}`, as width over height. Since Tyto
+ * 0.12 the host measures the file (ADR 0158) and its size wins; the proportion written is the
+ * frame's shape only for a picture the host could not measure, 2:1 when the slide writes none.
  */
-function pictureOf(context: TemplateContext): AssetRef | undefined {
-  const value = context.slots['imagem']?.value;
-  return value?.kind === 'image' ? value.asset : undefined;
+export const PROPORTIONS = {
+  '3x1': 3,
+  '5x2': 2.5,
+  '7x3': 7 / 3,
+  '2x1': 2,
+  '16x9': 16 / 9,
+  '3x2': 1.5,
+  '4x3': 4 / 3,
+  '1x1': 1,
+} as const;
+const DEFAULT_PROPORTION = '2x1';
+
+interface Picture {
+  readonly asset: AssetRef;
+  /** The shape the slide writes, width over height: the frame's when the file has no size. */
+  readonly written: number;
+}
+
+/**
+ * The image a middle slide shows: `{imagem: 1}` picks the brief's `imagem-1`, and
+ * `{proporcao: …}`, if written, is its shape for when the host could not measure it. Nothing
+ * when the slide names no image or the brief left that slot out.
+ */
+function pictureOf(context: TemplateContext): Picture | undefined {
+  const which = context.adjustments['imagem'];
+  if (typeof which !== 'string') return undefined;
+  const value = context.slots[`imagem-${which}`]?.value;
+  if (value?.kind !== 'image') return undefined;
+  const written = context.adjustments['proporcao'];
+  const proportion = (
+    typeof written === 'string' && written in PROPORTIONS ? written : DEFAULT_PROPORTION
+  ) as keyof typeof PROPORTIONS;
+  return { asset: value.asset, written: PROPORTIONS[proportion] };
 }
 
 /**
  * An image in the reference's frame, measured on it: a 4 px border in the title's ink on the
  * top, the right and the foot, a 29 px bar down the left, and the white area's two left corners
  * rounded where they meet the bar. The frame is as tall as the picture's own shape makes it at
- * the frame's width (Tyto ADR 0158), held between `FRAME_SHAPES`, and the image is fitted whole
- * inside.
+ * the frame's width (Tyto ADR 0158), or as the slide's `{proporcao}` when the host could not
+ * measure it, held between `FRAME_SHAPES`, and the image is fitted whole inside.
  *
  * The rounding is drawn over the image, as two corner pieces in the frame's ink, so a photo
  * that fills the area is cut to the same corners the white area has.
  */
 function framedImage(
-  picture: AssetRef,
+  picture: Picture,
   at: { readonly x: number; readonly y: number },
   ink: Ink,
 ): { readonly nodes: NodeDraft[]; readonly foot: number } {
   const width = FRAME.w - FRAME.side - FRAME.border;
-  const natural = imageHeight(picture, width, width / FALLBACK_SHAPE);
+  const natural = imageHeight(picture.asset, width, width / picture.written);
   const clamped = Math.min(
     width / FRAME_SHAPES.tallest,
     Math.max(width / FRAME_SHAPES.widest, natural),
@@ -534,7 +563,7 @@ function framedImage(
         transform: { x: at.x, y: at.y },
       }),
       rect({ name: 'fundo-imagem', size, fill: solid(ink('paper')), transform: inside }),
-      image({ name: 'imagem', asset: picture, size, fit: 'contain', transform: inside }),
+      image({ name: 'imagem', asset: picture.asset, size, fit: 'contain', transform: inside }),
       corner('canto-superior', `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner('canto-inferior', `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r),
     ],

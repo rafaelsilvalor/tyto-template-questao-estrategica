@@ -5081,26 +5081,26 @@ function isRecursive(inst, stack, resolve) {
   let result = NONE;
   const check2 = (child) => {
     if (result !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve);
-      if (answer > result)
-        result = answer;
+      const answer2 = isRecursive(child, stack, resolve);
+      if (answer2 > result)
+        result = answer2;
     }
   };
   const shape = (sh, spread) => {
-    let answer = NONE;
+    let answer2 = NONE;
     for (const key of Reflect.ownKeys(sh)) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
       const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
-      if (child > answer)
-        answer = child;
+      if (child > answer2)
+        answer2 = child;
     }
-    return answer;
+    return answer2;
   };
-  const merge2 = (answer) => {
-    if (answer > result)
-      result = answer;
+  const merge2 = (answer2) => {
+    if (answer2 > result)
+      result = answer2;
   };
   const def = inst._zod.def;
   const kind = def.type;
@@ -5203,10 +5203,10 @@ function isRecursive(inst, stack, resolve) {
   stack.delete(inst);
   return settle(inst, result);
 }
-function settle(inst, answer) {
-  if (answer !== ASSUMED)
-    recursive.set(inst, answer === PROVEN);
-  return answer;
+function settle(inst, answer2) {
+  if (answer2 !== ASSUMED)
+    recursive.set(inst, answer2 === PROVEN);
+  return answer2;
 }
 function isRecursiveSchema(inst) {
   return isRecursive(inst, /* @__PURE__ */ new Set(), true) !== NONE;
@@ -21271,6 +21271,21 @@ function formatDiagnosticMessage(code, params) {
     return String(value);
   });
 }
+function sourceRange(start, end) {
+  if (!Number.isInteger(start) || !Number.isInteger(end)) {
+    throw new TypeError(`Range offsets must be integers, received (${start}, ${end}).`);
+  }
+  if (start < 0) {
+    throw new RangeError(`Range start must not be negative, received ${start}.`);
+  }
+  if (end < start) {
+    throw new RangeError(`Range end ${end} must not precede start ${start}.`);
+  }
+  return { start, end };
+}
+function unionRanges(a, b) {
+  return sourceRange(Math.min(a.start, b.start), Math.max(a.end, b.end));
+}
 function diagnostic(code, params, options = {}) {
   const base2 = {
     severity: diagnosticCodes[code].severity,
@@ -21450,6 +21465,85 @@ function run(text2, options) {
 function lineBreak() {
   return { kind: "break" };
 }
+var origins = /* @__PURE__ */ new WeakMap();
+function rememberOrigin(run2, range) {
+  origins.set(run2, range);
+}
+function originOf(run2) {
+  return origins.get(run2);
+}
+var BOLD = 700;
+var sameColor = (a, b) => a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
+var sameStops = (a, b) => a.length === b.length && a.every((stop2, index) => {
+  const other = b[index];
+  return other !== void 0 && stop2.offset === other.offset && sameColor(stop2.color, other.color);
+});
+function samePaint(a, b) {
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case "solid":
+      return b.kind === "solid" && sameColor(a.color, b.color);
+    case "linear-gradient":
+      return b.kind === "linear-gradient" && a.angle === b.angle && sameStops(a.stops, b.stops);
+    case "radial-gradient":
+      return b.kind === "radial-gradient" && a.center.x === b.center.x && a.center.y === b.center.y && a.radius === b.radius && sameStops(a.stops, b.stops);
+    case "image":
+      return b.kind === "image" && a.fit === b.fit && a.asset.id === b.asset.id && a.asset.source === b.asset.source && a.asset.path === b.asset.path && a.asset.hash === b.asset.hash;
+  }
+}
+var sameFont = (a, b) => a.family === b.family && a.source === b.source && a.path === b.path;
+var sameStyle = (a, b) => a.size === b.size && a.weight === b.weight && a.style === b.style && a.decoration === b.decoration && sameFont(a.font, b.font) && samePaint(a.color, b.color);
+function absorbedByPrevious(target, produced, range) {
+  const previous = target[target.length - 1];
+  if (previous === void 0 || previous.kind !== "text") return false;
+  if (!sameStyle(previous, produced)) return false;
+  const merged = { ...previous, text: previous.text + produced.text };
+  const origin = originOf(previous);
+  rememberOrigin(merged, origin === void 0 ? range : unionRanges(origin, range));
+  target[target.length - 1] = merged;
+  return true;
+}
+function styled(inline, style2, options) {
+  switch (inline.kind) {
+    case "bold":
+      return { ...style2, weight: options.bold ?? BOLD };
+    case "italic":
+      return { ...style2, style: "italic" };
+    case "mark":
+      return { ...style2, ...options.mark?.(inline.key, inline.value) };
+    default:
+      return style2;
+  }
+}
+function append(target, text2, style2, options) {
+  for (const inline of text2) {
+    switch (inline.kind) {
+      case "text": {
+        if (inline.value === "") break;
+        const produced = run(inline.value, style2);
+        if (absorbedByPrevious(target, produced, inline.range)) break;
+        rememberOrigin(produced, inline.range);
+        target.push(produced);
+        break;
+      }
+      case "break":
+        target.push({ kind: "break" });
+        break;
+      default:
+        append(target, inline.children, styled(inline, style2, options), options);
+        break;
+    }
+  }
+}
+function runsOf(text2, base2, options = {}) {
+  const runs = [];
+  append(runs, text2, base2, options);
+  return runs;
+}
+function numberValue(context, name, fallback) {
+  const value = context.values?.[name];
+  return typeof value === "number" ? value : fallback;
+}
 function colorValue(context, name, fallback) {
   const value = context.values?.[name];
   return typeof value === "string" ? value : fallback;
@@ -21470,6 +21564,18 @@ function base(options) {
     ...options.mask !== void 0 ? { mask: options.mask } : {}
   };
 }
+function rect(options) {
+  const radius = options.radius ?? 0;
+  return {
+    ...base(options),
+    kind: "rect",
+    size: options.size,
+    radius: typeof radius === "number" ? [radius, radius, radius, radius] : [...radius],
+    ...options.id !== void 0 ? { id: options.id } : {},
+    ...options.fill !== void 0 ? { fill: options.fill } : {},
+    ...options.stroke !== void 0 ? { stroke: options.stroke } : {}
+  };
+}
 function text(options) {
   return {
     ...base(options),
@@ -21486,6 +21592,17 @@ function text(options) {
     // `clip` is the only overflow that needs no measurement, so it is what a template
     // that says nothing gets; `shrink` and `grow` are choices, and E4.5 acts on them.
     overflow: options.overflow ?? "clip",
+    ...options.id !== void 0 ? { id: options.id } : {}
+  };
+}
+function image(options) {
+  return {
+    ...base(options),
+    kind: "image",
+    asset: options.asset,
+    size: options.size,
+    fit: options.fit ?? "cover",
+    position: options.position ?? { x: 0.5, y: 0.5 },
     ...options.id !== void 0 ? { id: options.id } : {}
   };
 }
@@ -21611,6 +21728,20 @@ function mark(shape, height, fill, name) {
     })
   );
 }
+function sealed(size, seal) {
+  if (seal === void 0) return { size, seal: [] };
+  const band = { w: size.w, h: seal.height };
+  const art = block(
+    band.w,
+    band.h,
+    image({ name: "seal", asset: seal.asset, size: band, fit: "cover" })
+  );
+  return { size: { w: size.w, h: size.h - seal.height }, seal: [at(0, size.h - seal.height, art)] };
+}
+function reportOverflow(report, bottom, limit) {
+  const overflow = bottom - limit;
+  if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
+}
 function lines(text2) {
   const result = [];
   let current = [];
@@ -21681,7 +21812,7 @@ var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
 var BOOK = 400;
-var BOLD = 700;
+var BOLD2 = 700;
 var TYPE = {
   title: 81,
   day: 55,
@@ -21709,8 +21840,15 @@ var style = (size, weight, color2) => ({
   color: color2
 });
 var EXAM_STYLE = style(TYPE.exam, BOOK, ROW_INK);
-var TITLE_STYLE = style(TYPE.title, BOLD, TITLE_INK);
+var TITLE_STYLE = style(TYPE.title, BOLD2, TITLE_INK);
 var TITLE_LINE = Math.round(TYPE.title * TITLE2.lineHeight);
+var SEAL_HEIGHT = 140;
+function sealOf(context) {
+  if (context.format !== "grid") return void 0;
+  if (context.artwork.index !== context.artwork.count - 1) return void 0;
+  const value = context.slots["selo"]?.value;
+  return value?.kind === "image" ? { asset: value.asset, height: SEAL_HEIGHT } : void 0;
+}
 var NUMBER = String.raw`\d[\d.,]*`;
 var TABLE_VALUE_DEFAULTS = {
   "title-gap": TITLE.gap,
@@ -21728,21 +21866,52 @@ var TABLE_VALUE_DEFAULTS = {
 
 // src/template.ts
 var DEFAULT_TITLE = "Quest\xE3o de fixa\xE7\xE3o";
-var DEFAULT_SIGN_OFF = "Curtiu?\nSalve o post para revisar e envie a um amigo que tamb\xE9m estuda para concurso.";
+var DEFAULT_SIGN_OFF_TITLE = "Curtiu?";
+var DEFAULT_SIGN_OFF_BOLD = "Salve o post para revisar";
+var DEFAULT_SIGN_OFF_REST = " e envie a um amigo que tamb\xE9m estuda para concurso.";
+var STATEMENT_LABEL = "Enunciado:";
+var ANSWER_LABEL = "Resposta";
+var SWIPE = "Arraste para o lado";
 var COLOR_DEFAULTS = {
   /** The cover's colour where the brief gives it no picture. */
   deep: "#00153d",
+  /** The cover's title, its rule and its slide number. */
+  accent: "#1d9ad5",
+  /** The cover's other words, its arrow and its logo. */
+  "on-deep": "#ffffff",
   /** The paper of every slide but the cover. */
   paper: "#ffffff",
-  /** The words on the paper. */
-  ink: "#081c3d"
+  /** The headings, the options' letters, the logo, the numbers, the arrows, the frame. */
+  "title-ink": "#081c3d",
+  /** The statement, the options and the explanation. */
+  "body-ink": "#4d4d4d",
+  /** The sign-off's paragraph. */
+  "closing-ink": "#676767",
+  /** The like bar under the sign-off, and its icons. */
+  "bar-fill": "#e2e2e2",
+  "bar-ink": "#4c4c4c"
+};
+var NUMBER_DEFAULTS = {
+  /** The smallest the cover's exam lines are set; a longer title overflows, reported. */
+  "exam-floor": 56,
+  /** The largest the cover's exam lines are set, for a short title. */
+  "exam-ceiling": 112
 };
 var FACE2 = { family: "CircularXX", source: "system" };
+var LIGHT = 300;
 var REGULAR = 400;
-var BOLD2 = 700;
+var MEDIUM = 500;
+var BOLD3 = 700;
 var BLACK = 900;
+var ASCENT = 0.75;
+var DESCENT = 0.25;
+var CAP_HEIGHT = 0.709;
+function capOffset(size, lineHeight) {
+  return size * ((lineHeight - (ASCENT + DESCENT)) / 2 + (ASCENT - CAP_HEIGHT));
+}
 var SLIDE_WIDTH = 1080;
-var MARGIN = 80;
+var FOOTER_TOP = 1259;
+var ESTIMATED_ADVANCE = 0.5;
 function roleOf(context) {
   if (context.adjustments["capa"] === true) return "capa";
   if (context.adjustments["resposta"] === true) return "resposta";
@@ -21750,53 +21919,513 @@ function roleOf(context) {
   return "enunciado";
 }
 var build = (context) => {
-  const color2 = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
+  const ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
   const role = roleOf(context);
-  const dark = role === "capa";
-  const ink = dark ? "#ffffff" : color2("ink");
-  const words = role === "capa" ? `${slotText(context, "titulo", DEFAULT_TITLE)}
-${slideLines(context).join("\n")}` : role === "fecho" ? slotText(context, "fecho", DEFAULT_SIGN_OFF) : slideLines(context).join("\n");
-  const children = [
-    at(MARGIN, 48, drawLogo(context.brand, 79, oneInk(ink))),
-    textAt("texto", words, {
-      x: MARGIN,
-      y: 200,
-      size: 40,
-      weight: role === "capa" ? BLACK : BOLD2,
-      color: ink
-    }),
-    textAt("assinatura", signatureOf(context.brand), {
-      x: 0,
-      y: 1276,
-      size: 15,
-      weight: REGULAR,
-      color: ink,
-      width: SLIDE_WIDTH
-    })
-  ];
+  const last = context.artwork.index === context.artwork.count - 1;
+  const page = sealed(context.size, sealOf(context));
+  const lift = context.size.h - page.size.h;
+  if (role === "capa") {
+    const picture = context.slots["fundo"]?.value;
+    return frame({
+      format: context.format,
+      size: context.size,
+      idPrefix: context.idPrefix,
+      background: solid(ink("deep")),
+      children: [
+        ...picture?.kind === "image" ? [image({ name: "fundo", asset: picture.asset, size: context.size, fit: "cover" })] : [],
+        at(80, 72, drawLogo(context.brand, 62, oneInk(ink("on-deep")))),
+        ...cover(context, ink, last, lift),
+        ...page.seal
+      ]
+    });
+  }
+  const body = role === "resposta" ? answer(context, ink, lift) : role === "fecho" ? signOff(context, ink) : statement(context, ink, lift);
   return frame({
     format: context.format,
     size: context.size,
     idPrefix: context.idPrefix,
-    background: solid(dark ? color2("deep") : color2("paper")),
-    children
+    background: solid(ink("paper")),
+    children: [
+      at(80, 48, drawLogo(context.brand, 79, oneInk(ink("title-ink")))),
+      ...body,
+      slideNumber(context, {
+        capTop: 1261 - lift,
+        current: ink("title-ink"),
+        total: ink("title-ink")
+      }),
+      ...last ? [] : [arrow({ x: 877, y: FOOTER_TOP, w: 151, h: 28, shaft: 7.5 }, ink("title-ink"))],
+      ...page.seal
+    ]
   });
 };
+function cover(context, ink, last, lift) {
+  return [
+    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+      x: 82,
+      capTop: 273,
+      size: 86.17,
+      weight: BLACK,
+      color: ink("accent"),
+      width: SLIDE_WIDTH - 85 - 40
+    }),
+    rect({
+      name: "regua",
+      size: { w: 919, h: 10 },
+      fill: solid(ink("accent")),
+      transform: { x: 81, y: 388 }
+    }),
+    examLines(context, ink("on-deep"), lift),
+    slideNumber(context, { capTop: 1162 - lift, current: ink("accent"), total: ink("on-deep") }),
+    ...last ? [] : [
+      textAt("arraste", SWIPE, {
+        x: 677,
+        capTop: 1167,
+        size: 25,
+        weight: REGULAR,
+        color: ink("on-deep"),
+        letterSpacing: 0.5
+      }),
+      arrow({ x: 912, y: 1164, w: 76, h: 26, shaft: 7 }, ink("on-deep"))
+    ],
+    textAt("assinatura", signatureOf(context.brand), {
+      x: 0,
+      capTop: 1277 - lift,
+      size: 14.58,
+      weight: REGULAR,
+      color: ink("on-deep"),
+      width: SLIDE_WIDTH,
+      align: "center",
+      letterSpacing: 6.42
+    })
+  ];
+}
+var EXAM = {
+  x: 85,
+  capTop: 573,
+  /** The reference's 93.28 px lines are 129 px apart: the pitch keeps that ratio at any size. */
+  lineHeight: 129 / 93.28,
+  /** The reference's widest exam line is 898 px: a few pixels past it, no more. */
+  width: 903,
+  /** 80 px over the slide's number. */
+  bottom: 1162 - 80,
+  /** A capital's advance, in em, for when nothing can be measured (a test, CI without the face). */
+  estimatedAdvance: 0.6
+};
+function examLines(context, color2, lift) {
+  const written = slideLines(context);
+  const floor = numberValue(context, "exam-floor", NUMBER_DEFAULTS["exam-floor"]);
+  const ceiling = Math.max(
+    floor,
+    numberValue(context, "exam-ceiling", NUMBER_DEFAULTS["exam-ceiling"])
+  );
+  const bottom = EXAM.bottom - lift;
+  const draft = (size) => textAt("prova", written.join("\n"), {
+    x: EXAM.x,
+    capTop: EXAM.capTop,
+    size,
+    weight: BOLD3,
+    color: color2,
+    lineHeight: EXAM.lineHeight,
+    width: EXAM.width
+  });
+  const layout = (size) => {
+    const node2 = draft(size);
+    const measured = node2.kind === "text" ? context.measure(node2) : void 0;
+    if (measured !== void 0) return measured;
+    const widest = Math.max(0, ...written.map((line) => [...line].length));
+    return { lines: written.length, width: widest * EXAM.estimatedAdvance * size };
+  };
+  const foot = (size, lines2) => EXAM.capTop + (lines2 - 1) * size * EXAM.lineHeight + size * CAP_HEIGHT;
+  const sizes = [];
+  for (let size = Math.floor(ceiling); size >= floor; size -= 1) sizes.push(size);
+  const fits = (size, keepLines) => {
+    const laid = layout(size);
+    return laid.width <= EXAM.width + 0.5 && foot(size, laid.lines) <= bottom && (!keepLines || laid.lines <= Math.max(1, written.length));
+  };
+  const chosen = sizes.find((size) => fits(size, true)) ?? sizes.find((size) => fits(size, false));
+  if (chosen !== void 0) return draft(chosen);
+  reportOverflow(context.report, foot(floor, layout(floor).lines), bottom);
+  return draft(floor);
+}
+var STATEMENT = {
+  x: 131,
+  labelTop: 197,
+  labelSize: 45.83,
+  /** From the label's capitals to the statement's. */
+  labelToBody: 93,
+  bodySize: 40,
+  bodyLineHeight: 1.5,
+  bodyWidth: 810,
+  /** From the statement's last capitals to the first option's. */
+  bodyToOptions: 99,
+  optionX: 117,
+  /** Where an option's words start, its letter hanging left of them. */
+  optionTextX: 163,
+  optionSize: 37.5,
+  optionLineHeight: 1.2,
+  optionWidth: 800,
+  /** From one option's last line's capitals to the next option's first. */
+  optionPitch: 74.25,
+  /** The lowest an option may end: 40 px over the arrow. */
+  limit: FOOTER_TOP - 40
+};
+var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
+function statement(context, ink, lift) {
+  const all = slideRichLines(context);
+  const firstOption = all.findIndex((line) => OPTION.test(plain(line)));
+  const body = firstOption < 0 ? all : all.slice(0, firstOption);
+  const options = firstOption < 0 ? [] : all.slice(firstOption);
+  const continued = context.adjustments["continua"] === true;
+  const nodes = continued ? [] : [
+    textAt("rotulo", STATEMENT_LABEL, {
+      x: STATEMENT.x,
+      capTop: STATEMENT.labelTop,
+      size: STATEMENT.labelSize,
+      weight: BLACK,
+      color: ink("title-ink")
+    })
+  ];
+  const bodyTop = continued ? STATEMENT.labelTop : STATEMENT.labelTop + STATEMENT.labelToBody;
+  const bodyStyle = { font: FACE2, size: STATEMENT.bodySize, weight: LIGHT, color: ink("body-ink") };
+  const bodyDraft = richAt("enunciado", body, bodyStyle, {
+    x: STATEMENT.x,
+    capTop: bodyTop,
+    lineHeight: STATEMENT.bodyLineHeight,
+    width: STATEMENT.bodyWidth
+  });
+  let foot = bodyTop - FRAME.gap;
+  let optionTop = bodyTop;
+  if (body.length > 0) {
+    nodes.push(bodyDraft);
+    const count = lineCount(context, bodyDraft, body, STATEMENT.bodySize, STATEMENT.bodyWidth);
+    const lastTop = bodyTop + (count - 1) * STATEMENT.bodySize * STATEMENT.bodyLineHeight;
+    foot = lastTop + STATEMENT.bodySize * CAP_HEIGHT;
+    optionTop = lastTop + STATEMENT.bodyToOptions;
+  }
+  const picture = pictureOf(context);
+  if (picture !== void 0) {
+    const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
+    nodes.push(...framed.nodes);
+    foot = framed.foot;
+    optionTop = foot + FRAME.gap;
+  }
+  for (const [index, line] of options.entries()) {
+    const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
+    const words = textAt(`alternativa-${index + 1}`, rest, {
+      x: STATEMENT.optionTextX,
+      capTop: optionTop,
+      size: STATEMENT.optionSize,
+      weight: LIGHT,
+      color: ink("body-ink"),
+      lineHeight: STATEMENT.optionLineHeight,
+      width: STATEMENT.optionWidth
+    });
+    nodes.push(
+      textAt(`letra-${index + 1}`, letter, {
+        x: STATEMENT.optionX,
+        capTop: optionTop,
+        size: STATEMENT.optionSize,
+        weight: MEDIUM,
+        color: ink("title-ink"),
+        lineHeight: STATEMENT.optionLineHeight
+      }),
+      words
+    );
+    const count = lineCount(context, words, [rest], STATEMENT.optionSize, STATEMENT.optionWidth);
+    const lastTop = optionTop + (count - 1) * STATEMENT.optionSize * STATEMENT.optionLineHeight;
+    foot = lastTop + STATEMENT.optionSize * CAP_HEIGHT;
+    optionTop = lastTop + STATEMENT.optionPitch;
+  }
+  reportOverflow(context.report, foot, STATEMENT.limit - lift);
+  return nodes;
+}
+var FRAME = {
+  w: 835,
+  /** The border on the top, the right and the foot. */
+  border: 4,
+  /** The bar down the left side, border included. */
+  side: 29,
+  /** The radius of the white area's two left corners, where it meets the bar. */
+  radius: 32,
+  gap: 48
+};
+var FRAME_X = 123;
+var PROPORTIONS = {
+  "3x1": 3,
+  "5x2": 2.5,
+  "7x3": 7 / 3,
+  "2x1": 2,
+  "16x9": 16 / 9,
+  "3x2": 1.5,
+  "4x3": 4 / 3,
+  "1x1": 1
+};
+var DEFAULT_PROPORTION = "2x1";
+function pictureOf(context) {
+  const which = context.adjustments["imagem"];
+  if (typeof which !== "string") return void 0;
+  const value = context.slots[`imagem-${which}`]?.value;
+  if (value?.kind !== "image") return void 0;
+  const written = context.adjustments["proporcao"];
+  const proportion = typeof written === "string" && written in PROPORTIONS ? written : DEFAULT_PROPORTION;
+  return { asset: value.asset, ratio: PROPORTIONS[proportion] };
+}
+function framedImage(picture, at2, ink) {
+  const width = FRAME.w - FRAME.side - FRAME.border;
+  const size = { w: width, h: Math.round(width / picture.ratio) };
+  const height = size.h + 2 * FRAME.border;
+  const inside = { x: at2.x + FRAME.side, y: at2.y + FRAME.border };
+  const r = FRAME.radius;
+  const corner = (name, d, y) => vector({
+    name,
+    geometry: { kind: "path", d, fillRule: "nonzero" },
+    size: { w: r, h: r },
+    fill: solid(ink("title-ink")),
+    transform: { x: inside.x, y }
+  });
+  return {
+    nodes: [
+      // The reference's shadow is narrower than the frame, and CSS draws no spread: a smaller
+      // shape hidden behind the frame casts it instead.
+      rect({
+        name: "sombra",
+        size: { w: FRAME.w - 2 * SHADOW_INSET, h: height - 2 * SHADOW_INSET },
+        fill: solid(ink("title-ink")),
+        effects: [SHADOW],
+        transform: { x: at2.x + SHADOW_INSET, y: at2.y + SHADOW_INSET }
+      }),
+      rect({
+        name: "moldura",
+        size: { w: FRAME.w, h: height },
+        fill: solid(ink("title-ink")),
+        transform: { x: at2.x, y: at2.y }
+      }),
+      rect({ name: "fundo-imagem", size, fill: solid(ink("paper")), transform: inside }),
+      image({ name: "imagem", asset: picture.asset, size, fit: "contain", transform: inside }),
+      corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
+      corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
+    ],
+    foot: at2.y + height
+  };
+}
+var SHADOW_INSET = 20;
+var SHADOW = {
+  kind: "shadow",
+  x: 17,
+  y: 47,
+  blur: 12,
+  spread: 0,
+  color: { r: 0, g: 0, b: 0, a: 0.16 }
+};
+var ANSWER = {
+  x: 80,
+  labelTop: 229,
+  labelSize: 45.06,
+  answerTop: 288,
+  answerSize: 103,
+  bodyTop: 526,
+  bodySize: 68.09,
+  bodyLineHeight: 1.5,
+  bodyWidth: 840,
+  limit: FOOTER_TOP - 40
+};
+function answer(context, ink, lift) {
+  const continued = context.adjustments["continua"] === true;
+  const written = slideRichLines(context);
+  const first = continued ? void 0 : written[0];
+  const rest = continued ? written : written.slice(1);
+  const bodyTop = continued ? ANSWER.labelTop : ANSWER.bodyTop;
+  const bodyStyle = { font: FACE2, size: ANSWER.bodySize, weight: LIGHT, color: ink("body-ink") };
+  const body = richAt("explicacao", rest, bodyStyle, {
+    x: ANSWER.x,
+    capTop: bodyTop,
+    lineHeight: ANSWER.bodyLineHeight,
+    width: ANSWER.bodyWidth
+  });
+  const nodes = [];
+  let foot = bodyTop - FRAME.gap;
+  if (rest.length > 0) {
+    nodes.push(body);
+    const count = lineCount(context, body, rest, ANSWER.bodySize, ANSWER.bodyWidth);
+    const lastTop = bodyTop + (count - 1) * ANSWER.bodySize * ANSWER.bodyLineHeight;
+    foot = lastTop + ANSWER.bodySize * CAP_HEIGHT;
+  }
+  const picture = pictureOf(context);
+  if (picture !== void 0) {
+    const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
+    nodes.push(...framed.nodes);
+    foot = framed.foot;
+  }
+  reportOverflow(context.report, foot, ANSWER.limit - lift);
+  if (continued) return nodes;
+  return [
+    textAt("rotulo", ANSWER_LABEL, {
+      x: ANSWER.x,
+      capTop: ANSWER.labelTop,
+      size: ANSWER.labelSize,
+      weight: BLACK,
+      color: ink("title-ink")
+    }),
+    textAt("resposta", first === void 0 ? "" : plain(first).trim(), {
+      x: ANSWER.x,
+      capTop: ANSWER.answerTop,
+      size: ANSWER.answerSize,
+      weight: BLACK,
+      color: ink("title-ink")
+    }),
+    ...nodes
+  ];
+}
+var SIGN_OFF = {
+  titleTop: 375,
+  titleSize: 107.66,
+  paragraphX: 190,
+  paragraphTop: 561,
+  paragraphSize: 51.94,
+  paragraphLineHeight: 1.6,
+  paragraphWidth: 700
+};
+function signOff(context, ink) {
+  const written = slotText(context, "fecho", "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
+  const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
+  const style2 = {
+    font: FACE2,
+    size: SIGN_OFF.paragraphSize,
+    weight: LIGHT,
+    color: ink("closing-ink")
+  };
+  const words = written.length === 0 ? `**${DEFAULT_SIGN_OFF_BOLD}**${DEFAULT_SIGN_OFF_REST}` : paragraph.join("\n");
+  return [
+    textAt("fecho-titulo", title, {
+      x: 0,
+      capTop: SIGN_OFF.titleTop,
+      size: SIGN_OFF.titleSize,
+      weight: BLACK,
+      color: ink("title-ink"),
+      width: SLIDE_WIDTH,
+      align: "center"
+    }),
+    textRuns("fecho-texto", boldRuns(words, style2), {
+      x: SIGN_OFF.paragraphX,
+      capTop: SIGN_OFF.paragraphTop,
+      size: SIGN_OFF.paragraphSize,
+      lineHeight: SIGN_OFF.paragraphLineHeight,
+      width: SIGN_OFF.paragraphWidth,
+      align: "center"
+    }),
+    ...likeBar(ink)
+  ];
+}
+function boldRuns(words, style2) {
+  return words.split("\n").flatMap((line, index) => [
+    ...index > 0 ? [lineBreak()] : [],
+    ...line.split(/\*\*/).map((piece, part) => ({ piece, bold: part % 2 === 1 })).filter(({ piece }) => piece !== "").map(({ piece, bold }) => run(piece, bold ? { ...style2, weight: BOLD3 } : style2))
+  ]);
+}
+function likeBar(ink) {
+  const icon = (name, x, d, filled, w) => vector({
+    name,
+    geometry: { kind: "path", d, fillRule: "nonzero" },
+    size: { w, h: 35 },
+    ...filled ? { fill: solid(ink("bar-ink")) } : {
+      // An outline: without a fill the exporter paints the inside black.
+      fill: solid(ink("bar-fill")),
+      stroke: { paint: solid(ink("bar-ink")), width: 3, align: "center" }
+    },
+    transform: { x, y: 919 }
+  });
+  return [
+    rect({
+      name: "barra",
+      size: { w: 546, h: 95 },
+      radius: 47.5,
+      fill: solid(ink("bar-fill")),
+      transform: { x: 269, y: 886 }
+    }),
+    icon("curtir", 342, HEART, true, 40),
+    icon("comentar", 469, BUBBLE, false, 39),
+    icon("enviar", 596, PLANE, false, 35),
+    icon("salvar", 718, BOOKMARK, false, 24)
+  ];
+}
+var HEART = "M20 34C20 34 1 22.5 1 11C1 5 5.5 1 11 1C15 1 18.5 3.5 20 7C21.5 3.5 25 1 29 1C34.5 1 39 5 39 11C39 22.5 20 34 20 34Z";
+var BUBBLE = "M19.5 2C29.5 2 37 8.5 37 16.5C37 24.5 29.5 31 19.5 31C17 31 14.5 30.6 12.3 29.8L5 33L7 26.5C3.9 23.9 2 20.4 2 16.5C2 8.5 9.5 2 19.5 2Z";
+var PLANE = "M33 2L2 14L15 19L20 33L33 2Z M15 19L33 2";
+var BOOKMARK = "M2 2H22V33L12 24L2 33Z";
+function slideNumber(context, placed) {
+  const pad = (value) => String(value).padStart(2, "0");
+  const size = 29.34;
+  const style2 = { font: FACE2, size, weight: REGULAR };
+  return textRuns(
+    "numero",
+    [
+      run(pad(context.artwork.index + 1), { ...style2, weight: BOLD3, color: placed.current }),
+      run(" I ", { ...style2, color: placed.current }),
+      run(pad(context.artwork.count), { ...style2, color: placed.total })
+    ],
+    { x: 82, capTop: placed.capTop, size, lineHeight: 1, letterSpacing: -1.17 }
+  );
+}
+function arrow(box, color2) {
+  const head = Math.round(box.h * 0.64);
+  const top = (box.h - box.shaft) / 2;
+  const neck = box.w - head;
+  const d = `M0 ${top}H${neck}V0L${box.w} ${box.h / 2}L${neck} ${box.h}V${top + box.shaft}H0Z`;
+  return vector({
+    name: "seta",
+    geometry: { kind: "path", d, fillRule: "nonzero" },
+    size: { w: box.w, h: box.h },
+    fill: solid(color2),
+    transform: { x: box.x, y: box.y }
+  });
+}
 function textAt(name, words, placed) {
   const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
   const [first = "", ...others] = words.split("\n");
+  return textRuns(
+    name,
+    [run(first, style2), ...others.flatMap((line) => [lineBreak(), run(line, style2)])],
+    placed
+  );
+}
+function richAt(name, written, style2, box) {
+  const runs = written.flatMap((line, index) => [
+    ...index > 0 ? [lineBreak()] : [],
+    ...runsOf(line, style2, { bold: BOLD3 })
+  ]);
+  return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
+}
+function textRuns(name, runs, placed) {
+  const lineHeight = placed.lineHeight ?? 1;
+  const [head, ...tail] = runs;
+  const empty = run("", { font: FACE2, size: placed.size, weight: REGULAR, color: "#000000" });
   return text({
     name,
-    runs: [run(first, style2), ...others.flatMap((line) => [lineBreak(), run(line, style2)])],
-    box: { w: placed.width ?? SLIDE_WIDTH - 2 * MARGIN },
-    lineHeight: 1.2,
-    transform: { x: placed.x, y: placed.y }
+    runs: [head ?? empty, ...tail],
+    ...placed.width === void 0 ? {} : { box: { w: placed.width } },
+    align: placed.align ?? "left",
+    lineHeight,
+    letterSpacing: placed.letterSpacing ?? 0,
+    transform: { x: placed.x, y: placed.capTop - capOffset(placed.size, lineHeight) }
   });
 }
-function slideLines(context) {
+function lineCount(context, node2, written, size, width) {
+  const measured = node2.kind === "text" ? context.measure(node2) : void 0;
+  if (measured !== void 0) return Math.max(1, measured.lines);
+  const perLine = Math.max(1, Math.floor(width / (size * ESTIMATED_ADVANCE)));
+  const count = written.reduce((sum, line) => {
+    const characters = [...typeof line === "string" ? line : plain(line)].length;
+    return sum + Math.max(1, Math.ceil(characters / perLine));
+  }, 0);
+  return Math.max(1, count);
+}
+function slideRichLines(context) {
   const value = context.slots["lamina"]?.value;
   if (value?.kind !== "rich-text") return [];
-  return lines(value.text).map((line) => plain(line).trim()).filter((line) => line !== "");
+  return lines(value.text).filter((line) => plain(line).trim() !== "");
+}
+function slideLines(context) {
+  return slideRichLines(context).map((line) => plain(line).trim());
 }
 function slotText(context, name, fallback) {
   const value = context.slots[name]?.value;

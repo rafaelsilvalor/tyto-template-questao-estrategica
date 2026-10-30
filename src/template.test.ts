@@ -248,10 +248,45 @@ selo: ./selo.png
     expect(numberY(first!) - numberY(last!)).toBe(140);
   });
 
+  it('sets a short statement larger than a long one, its options following it', async () => {
+    const sizes = async (brief: string) => {
+      const [slide] = await slides(brief);
+      const sizeOf = (name: string) => {
+        const [node] = texts(slide!).filter((item) => item.name === name);
+        const [first] = node!.runs;
+        return first?.kind === 'text' ? first.size : 0;
+      };
+      return { statement: sizeOf('enunciado'), option: sizeOf('alternativa-1') };
+    };
+    const short = await sizes(OPTIONS);
+    const long = await sizes(
+      OPTIONS.replace('Qual destas é a resposta?', 'Uma frase longa do enunciado. '.repeat(14)),
+    );
+
+    expect(short.statement).toBe(NUMBER_DEFAULTS['statement-ceiling']);
+    expect(long.statement).toBeLessThan(short.statement);
+    expect(long.statement).toBeGreaterThanOrEqual(NUMBER_DEFAULTS['statement-floor']);
+    expect(short.option / short.statement).toBeCloseTo(37.5 / 40);
+  });
+
+  it('sets a short explanation larger than a long one', async () => {
+    const sizeOf = async (explanation: string) => {
+      const [slide] = await slides(`::lamina {resposta}\n  Letra A\n  ${explanation}`);
+      const [node] = texts(slide!).filter((item) => item.name === 'explicacao');
+      const [first] = node!.runs;
+      return first?.kind === 'text' ? first.size : 0;
+    };
+    const short = await sizeOf('Porque sim.');
+    const long = await sizeOf('Uma explicação longa da resposta. '.repeat(10));
+
+    expect(short).toBe(NUMBER_DEFAULTS['explanation-ceiling']);
+    expect(long).toBeLessThan(short);
+  });
+
   it('reports a statement whose options run past the arrow, and none for the example', async () => {
     const many = Array.from(
-      { length: 14 },
-      (_, index) => `  ${'ABCDEFGHIJKLMN'[index]}) Uma opção.`,
+      { length: 26 },
+      (_, index) => `  ${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[index]}) Uma opção.`,
     );
     const long = await compiled(`::lamina\n  Qual?\n${many.join('\n')}`);
     const fits = await compiled(example);

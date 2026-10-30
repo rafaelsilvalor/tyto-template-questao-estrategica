@@ -85,6 +85,12 @@ export const NUMBER_DEFAULTS = {
   'exam-floor': 56,
   /** The largest the cover's exam lines are set, for a short title. */
   'exam-ceiling': 112,
+  /** The statement's size range; its options follow it, at the reference's 37.5 to 40. */
+  'statement-floor': 28,
+  'statement-ceiling': 48,
+  /** The answer's explanation's size range. */
+  'explanation-floor': 40,
+  'explanation-ceiling': 76,
 } as const;
 
 const FACE = { family: 'CircularXX', source: 'system' } as const;
@@ -305,12 +311,13 @@ const STATEMENT = {
   bodyWidth: 810,
   /** From the statement's last capitals to the first option's. */
   bodyToOptions: 99,
-  optionX: 117,
-  /** Where an option's words start, its letter hanging left of them. */
-  optionTextX: 163,
+  /** An option's letter stands on the statement's left edge (the maintainer, 2026-10-30). */
+  optionX: 131,
+  /** Where an option's words start, after its letter. */
+  optionTextX: 177,
   optionSize: 37.5,
   optionLineHeight: 1.2,
-  optionWidth: 800,
+  optionWidth: 786,
   /** From one option's last line's capitals to the next option's first. */
   optionPitch: 74.25,
   /** The lowest an option may end: 40 px over the arrow. */
@@ -329,7 +336,7 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
   // A statement that goes on from the slide before (`{continua}`) draws no label: its words
   // start where the label would.
   const continued = context.adjustments['continua'] === true;
-  const nodes: NodeDraft[] = continued
+  const label: NodeDraft[] = continued
     ? []
     : [
         textAt('rotulo', STATEMENT_LABEL, {
@@ -340,63 +347,106 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
           color: ink('title-ink'),
         }),
       ];
-
   const bodyTop = continued ? STATEMENT.labelTop : STATEMENT.labelTop + STATEMENT.labelToBody;
-  const bodyStyle = { font: FACE, size: STATEMENT.bodySize, weight: LIGHT, color: ink('body-ink') };
-  const bodyDraft = richAt('enunciado', body, bodyStyle, {
-    x: STATEMENT.x,
-    capTop: bodyTop,
-    lineHeight: STATEMENT.bodyLineHeight,
-    width: STATEMENT.bodyWidth,
-  });
-  // A slide of options alone (a statement continued) starts them where the words would start.
-  let foot = bodyTop - FRAME.gap;
-  let optionTop = bodyTop;
-  if (body.length > 0) {
-    nodes.push(bodyDraft);
-    const count = lineCount(context, bodyDraft, body, STATEMENT.bodySize, STATEMENT.bodyWidth);
-    const lastTop = bodyTop + (count - 1) * STATEMENT.bodySize * STATEMENT.bodyLineHeight;
-    foot = lastTop + STATEMENT.bodySize * CAP_HEIGHT;
-    optionTop = lastTop + STATEMENT.bodyToOptions;
-  }
-
   const picture = pictureOf(context);
-  if (picture !== undefined) {
-    const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
-    nodes.push(...framed.nodes);
-    foot = framed.foot;
-    optionTop = foot + FRAME.gap;
-  }
 
-  for (const [index, line] of options.entries()) {
-    const [, letter = '', rest = ''] = OPTION.exec(plain(line)) ?? [];
-    const words = textAt(`alternativa-${index + 1}`, rest, {
-      x: STATEMENT.optionTextX,
-      capTop: optionTop,
-      size: STATEMENT.optionSize,
-      weight: LIGHT,
-      color: ink('body-ink'),
-      lineHeight: STATEMENT.optionLineHeight,
-      width: STATEMENT.optionWidth,
-    });
-    nodes.push(
-      textAt(`letra-${index + 1}`, letter, {
-        x: STATEMENT.optionX,
+  /** The statement, its image and its options with the statement set at `size`. */
+  const layout = (size: number): Laid => {
+    // The options, their letters and the gaps are the reference's, in proportion to its 40 px.
+    const scale = size / STATEMENT.bodySize;
+    const optionSize = STATEMENT.optionSize * scale;
+    const nodes: NodeDraft[] = [];
+    // A slide of options alone (a statement continued) starts them where the words would start.
+    let foot = bodyTop - FRAME.gap;
+    let optionTop = bodyTop;
+    if (body.length > 0) {
+      const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
+      const draft = richAt('enunciado', body, style, {
+        x: STATEMENT.x,
+        capTop: bodyTop,
+        lineHeight: STATEMENT.bodyLineHeight,
+        width: STATEMENT.bodyWidth,
+      });
+      nodes.push(draft);
+      const count = lineCount(context, draft, body, size, STATEMENT.bodyWidth);
+      const lastTop = bodyTop + (count - 1) * size * STATEMENT.bodyLineHeight;
+      foot = lastTop + size * CAP_HEIGHT;
+      optionTop = lastTop + STATEMENT.bodyToOptions * scale;
+    }
+
+    if (picture !== undefined) {
+      const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
+      nodes.push(...framed.nodes);
+      foot = framed.foot;
+      optionTop = foot + FRAME.gap;
+    }
+
+    const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
+    const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+    for (const [index, line] of options.entries()) {
+      const [, letter = '', rest = ''] = OPTION.exec(plain(line)) ?? [];
+      const words = textAt(`alternativa-${index + 1}`, rest, {
+        x: textX,
         capTop: optionTop,
-        size: STATEMENT.optionSize,
-        weight: MEDIUM,
-        color: ink('title-ink'),
+        size: optionSize,
+        weight: LIGHT,
+        color: ink('body-ink'),
         lineHeight: STATEMENT.optionLineHeight,
-      }),
-      words,
-    );
-    const count = lineCount(context, words, [rest], STATEMENT.optionSize, STATEMENT.optionWidth);
-    const lastTop = optionTop + (count - 1) * STATEMENT.optionSize * STATEMENT.optionLineHeight;
-    foot = lastTop + STATEMENT.optionSize * CAP_HEIGHT;
-    optionTop = lastTop + STATEMENT.optionPitch;
+        width,
+      });
+      nodes.push(
+        textAt(`letra-${index + 1}`, letter, {
+          x: STATEMENT.optionX,
+          capTop: optionTop,
+          size: optionSize,
+          weight: MEDIUM,
+          color: ink('title-ink'),
+          lineHeight: STATEMENT.optionLineHeight,
+        }),
+        words,
+      );
+      const count = lineCount(context, words, [rest], optionSize, width);
+      const lastTop = optionTop + (count - 1) * optionSize * STATEMENT.optionLineHeight;
+      foot = lastTop + optionSize * CAP_HEIGHT;
+      optionTop = lastTop + STATEMENT.optionPitch * scale;
+    }
+    return { nodes, foot };
+  };
+
+  const laid = largestThatFits(context, 'statement', layout, STATEMENT.limit - lift);
+  return [...label, ...laid.nodes];
+}
+
+/** What a slide's middle comes to at one size: its nodes, and where the lowest of them ends. */
+interface Laid {
+  readonly nodes: NodeDraft[];
+  readonly foot: number;
+}
+
+/**
+ * The layout at the largest size between the `<name>-floor` and `<name>-ceiling` values whose
+ * foot stays over `limit`: short words grow to fill the slide and long ones shrink, as the
+ * cover's exam lines do (the maintainer, 2026-10-30). When not even the floor fits, the floor,
+ * reported as an overflow.
+ */
+function largestThatFits(
+  context: TemplateContext,
+  name: 'statement' | 'explanation',
+  layout: (size: number) => Laid,
+  limit: number,
+): Laid {
+  const floor = numberValue(context, `${name}-floor`, NUMBER_DEFAULTS[`${name}-floor`]);
+  const ceiling = Math.max(
+    floor,
+    numberValue(context, `${name}-ceiling`, NUMBER_DEFAULTS[`${name}-ceiling`]),
+  );
+  for (let size = Math.floor(ceiling); size >= floor; size -= 1) {
+    const laid = layout(size);
+    if (laid.foot <= limit) return laid;
   }
-  reportOverflow(context.report, foot, STATEMENT.limit - lift);
-  return nodes;
+  const laid = layout(floor);
+  reportOverflow(context.report, laid.foot, limit);
+  return laid;
 }
 
 /** The image's frame: where it stands, how wide, and its gap to the words over and under it. */
@@ -542,29 +592,35 @@ function answer(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
   const first = continued ? undefined : written[0];
   const rest = continued ? written : written.slice(1);
   const bodyTop = continued ? ANSWER.labelTop : ANSWER.bodyTop;
-  const bodyStyle = { font: FACE, size: ANSWER.bodySize, weight: LIGHT, color: ink('body-ink') };
-  const body = richAt('explicacao', rest, bodyStyle, {
-    x: ANSWER.x,
-    capTop: bodyTop,
-    lineHeight: ANSWER.bodyLineHeight,
-    width: ANSWER.bodyWidth,
-  });
-  const nodes: NodeDraft[] = [];
-  let foot = bodyTop - FRAME.gap;
-  if (rest.length > 0) {
-    nodes.push(body);
-    const count = lineCount(context, body, rest, ANSWER.bodySize, ANSWER.bodyWidth);
-    const lastTop = bodyTop + (count - 1) * ANSWER.bodySize * ANSWER.bodyLineHeight;
-    foot = lastTop + ANSWER.bodySize * CAP_HEIGHT;
-  }
   const picture = pictureOf(context);
-  if (picture !== undefined) {
-    const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
-    nodes.push(...framed.nodes);
-    foot = framed.foot;
-  }
-  reportOverflow(context.report, foot, ANSWER.limit - lift);
-  if (continued) return nodes;
+
+  /** The explanation and its image with the explanation set at `size`. */
+  const layout = (size: number): Laid => {
+    const nodes: NodeDraft[] = [];
+    let foot = bodyTop - FRAME.gap;
+    if (rest.length > 0) {
+      const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
+      const body = richAt('explicacao', rest, style, {
+        x: ANSWER.x,
+        capTop: bodyTop,
+        lineHeight: ANSWER.bodyLineHeight,
+        width: ANSWER.bodyWidth,
+      });
+      nodes.push(body);
+      const count = lineCount(context, body, rest, size, ANSWER.bodyWidth);
+      const lastTop = bodyTop + (count - 1) * size * ANSWER.bodyLineHeight;
+      foot = lastTop + size * CAP_HEIGHT;
+    }
+    if (picture !== undefined) {
+      const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
+      nodes.push(...framed.nodes);
+      foot = framed.foot;
+    }
+    return { nodes, foot };
+  };
+
+  const laid = largestThatFits(context, 'explanation', layout, ANSWER.limit - lift);
+  if (continued) return laid.nodes;
   return [
     textAt('rotulo', ANSWER_LABEL, {
       x: ANSWER.x,
@@ -580,7 +636,7 @@ function answer(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
       weight: BLACK,
       color: ink('title-ink'),
     }),
-    ...nodes,
+    ...laid.nodes,
   ];
 }
 

@@ -33,7 +33,7 @@ import {
   vector,
 } from '@tyto/core/template';
 import { drawLogo, oneInk, sealOf, signatureOf } from '@tyto/house-style';
-import { at, lines, plain, reportOverflow, sealed } from '@tyto/template-kit';
+import { at, imageHeight, lines, plain, reportOverflow, sealed } from '@tyto/template-kit';
 
 import type { AssetRef, RichText, TemplateBuild, TemplateContext, TextRun } from '@tyto/core';
 import type { NodeDraft } from '@tyto/core/template';
@@ -464,7 +464,18 @@ const FRAME = {
 /** Where a statement's frame stands: its left bar 8 px left of the words, as the reference. */
 const FRAME_X = 123;
 
-/** The image proportions a slide may write, `{proporcao: 2x1}`, as width over height. */
+/**
+ * The shapes a frame may take, as width over height: from a 3:1 band to a square, the range the
+ * hand-written `{proporcao}` of v0.2.0 offered. A taller picture is fitted whole into a square,
+ * because a frame taller than wide leaves the statement no room on a 1080×1350 slide.
+ */
+export const FRAME_SHAPES = { widest: 3, tallest: 1 } as const;
+
+/**
+ * The proportions a slide may still write, `{proporcao: 2x1}`, as width over height. Since Tyto
+ * 0.12 the host measures the file (ADR 0158) and its size wins; the proportion written is the
+ * frame's shape only for a picture the host could not measure, 2:1 when the slide writes none.
+ */
 export const PROPORTIONS = {
   '3x1': 3,
   '5x2': 2.5,
@@ -479,14 +490,14 @@ const DEFAULT_PROPORTION = '2x1';
 
 interface Picture {
   readonly asset: AssetRef;
-  /** The image's width over its height, as the slide writes it. */
-  readonly ratio: number;
+  /** The shape the slide writes, width over height: the frame's when the file has no size. */
+  readonly written: number;
 }
 
 /**
  * The image a middle slide shows: `{imagem: 1}` picks the brief's `imagem-1`, and
- * `{proporcao: …}` says its shape, because Tyto hands a template no image's size. Nothing when
- * the slide names no image or the brief left that slot out.
+ * `{proporcao: …}`, if written, is its shape for when the host could not measure it. Nothing
+ * when the slide names no image or the brief left that slot out.
  */
 function pictureOf(context: TemplateContext): Picture | undefined {
   const which = context.adjustments['imagem'];
@@ -497,14 +508,15 @@ function pictureOf(context: TemplateContext): Picture | undefined {
   const proportion = (
     typeof written === 'string' && written in PROPORTIONS ? written : DEFAULT_PROPORTION
   ) as keyof typeof PROPORTIONS;
-  return { asset: value.asset, ratio: PROPORTIONS[proportion] };
+  return { asset: value.asset, written: PROPORTIONS[proportion] };
 }
 
 /**
  * An image in the reference's frame, measured on it: a 4 px border in the title's ink on the
  * top, the right and the foot, a 29 px bar down the left, and the white area's two left corners
- * rounded where they meet the bar. The frame is as tall as the image's proportion makes it at
- * the frame's width, and the image is fitted whole inside.
+ * rounded where they meet the bar. The frame is as tall as the picture's own shape makes it at
+ * the frame's width (Tyto ADR 0158), or as the slide's `{proporcao}` when the host could not
+ * measure it, held between `FRAME_SHAPES`, and the image is fitted whole inside.
  *
  * The rounding is drawn over the image, as two corner pieces in the frame's ink, so a photo
  * that fills the area is cut to the same corners the white area has.
@@ -515,7 +527,12 @@ function framedImage(
   ink: Ink,
 ): { readonly nodes: NodeDraft[]; readonly foot: number } {
   const width = FRAME.w - FRAME.side - FRAME.border;
-  const size = { w: width, h: Math.round(width / picture.ratio) };
+  const natural = imageHeight(picture.asset, width, width / picture.written);
+  const clamped = Math.min(
+    width / FRAME_SHAPES.tallest,
+    Math.max(width / FRAME_SHAPES.widest, natural),
+  );
+  const size = { w: width, h: Math.round(clamped) };
   const height = size.h + 2 * FRAME.border;
   const inside = { x: at.x + FRAME.side, y: at.y + FRAME.border };
   const r = FRAME.radius;
@@ -529,8 +546,9 @@ function framedImage(
     });
   return {
     nodes: [
-      // The reference's shadow is narrower than the frame, and CSS draws no spread: a smaller
-      // shape hidden behind the frame casts it instead.
+      // The reference's shadow is narrower than the frame. A spread draws that since Tyto 0.12,
+      // but its HTML filter blurs half as wide as `drop-shadow()` (Tyto TYTO-500) and tints the
+      // frame (TYTO-501): until both land, a smaller shape hidden behind the frame casts it.
       rect({
         name: 'sombra',
         size: { w: FRAME.w - 2 * SHADOW_INSET, h: height - 2 * SHADOW_INSET },

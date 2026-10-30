@@ -27,11 +27,22 @@ const template = defineTemplate(manifest.value, build);
 const formats = formatCatalogue({ grid: { w: 1080, h: 1350, kind: 'grid' } });
 const example = read('../templates/questao-estrategica/examples/questao.brief');
 
-/** Any image the brief names is found; no file is read. */
+/**
+ * Any image the brief names is found; no file is read. A name `w x h` (`./900x300.png`) carries
+ * that pixel size, as the host reads it off the header (Tyto ADR 0158); any other has none.
+ */
 const anyImage: AssetResolver = {
   base: '.',
-  resolve: (reference) =>
-    Promise.resolve({ id: reference, source: 'file', path: reference, hash: reference }),
+  resolve: (reference) => {
+    const [, w, h] = /(\d+)x(\d+)/.exec(reference) ?? [];
+    return Promise.resolve({
+      id: reference,
+      source: 'file',
+      path: reference,
+      hash: reference,
+      ...(w === undefined || h === undefined ? {} : { size: { w: Number(w), h: Number(h) } }),
+    });
+  },
 };
 
 async function compiled(brief: string, options: Pick<CompileTemplateOptions, 'assets'> = {}) {
@@ -78,14 +89,18 @@ const wordsOf = (slide: Frame, name: string): string =>
     .map(words)
     .join('\n');
 
-/** A statement showing `imagem-1` at a proportion. */
-const pictured = (proportion: string): string =>
+/** A statement showing `imagem-1`, the file at `path`, with the marks `extra` beside it. */
+const pictured = (path: string, extra = ''): string =>
   `---
 template: questao-estrategica
 formats: [grid]
-imagem-1: ./figura.png
+imagem-1: ${path}
 ---
-` + OPTIONS.replace('::lamina', `::lamina {imagem: 1, proporcao: ${proportion}}`);
+` + OPTIONS.replace('::lamina', `::lamina {imagem: 1${extra}}`);
+
+/** How tall the slide's framed picture is drawn. */
+const pictureHeight = (slide: Frame): number =>
+  (named(slide, 'imagem')[0] as { size: { h: number } }).size.h;
 
 const OPTIONS = `::lamina
   Qual destas é a resposta?
@@ -174,18 +189,47 @@ describe('questao-estrategica', () => {
     expect(wordsOf(slide!, 'alternativa-2')).toBe('A segunda.');
   });
 
-  it('frames a slide’s image under its words, the frame as tall as the proportion says', async () => {
-    const wide = await slides(pictured('3x1'), { assets: anyImage });
-    const square = await slides(pictured('1x1'), { assets: anyImage });
-    const [frame] = named(wide[0]!, 'moldura');
-    const [statement] = named(wide[0]!, 'enunciado');
-    const [first] = named(wide[0]!, 'alternativa-1');
-    const height = (slide: Frame) => (named(slide, 'imagem')[0] as { size: { h: number } }).size.h;
+  it('frames a slide’s image under its words, the frame as tall as the file’s own shape', async () => {
+    const [wide] = await slides(pictured('./900x300.png'), { assets: anyImage });
+    const [landscape] = await slides(pictured('./800x600.png'), { assets: anyImage });
+    const [frame] = named(wide!, 'moldura');
+    const [statement] = named(wide!, 'enunciado');
+    const [first] = named(wide!, 'alternativa-1');
 
-    expect(named(wide[0]!, 'imagem')[0]?.kind).toBe('image');
+    expect(named(wide!, 'imagem')[0]?.kind).toBe('image');
     expect(frame!.transform.y).toBeGreaterThan(statement!.transform.y);
-    expect(first!.transform.y).toBeGreaterThan(frame!.transform.y + height(wide[0]!));
-    expect(height(square[0]!)).toBeCloseTo(3 * height(wide[0]!), -1);
+    expect(first!.transform.y).toBeGreaterThan(frame!.transform.y + pictureHeight(wide!));
+    // The frame's inside is 802 px wide: 900×300 is 267.3 tall, 800×600 is 601.5.
+    expect(pictureHeight(wide!)).toBe(267);
+    expect(pictureHeight(landscape!)).toBe(602);
+  });
+
+  it('holds the frame between 3:1 and square, the picture fitted whole inside', async () => {
+    const [band] = await slides(pictured('./1200x200.png'), { assets: anyImage });
+    const [tall] = await slides(pictured('./500x700.png'), { assets: anyImage });
+
+    expect(pictureHeight(band!)).toBe(267);
+    expect(pictureHeight(tall!)).toBe(802);
+    expect((named(tall!, 'imagem')[0] as { fit: string }).fit).toBe('contain');
+  });
+
+  it('still accepts {proporcao}: ignored when the file has a size, the shape when it has none', async () => {
+    const measured = await compiled(pictured('./900x300.png', ', proporcao: 1x1'), {
+      assets: anyImage,
+    });
+    const [ignored] = measured.value.scene.artworks.flatMap((artwork) => artwork.frames);
+    const [unmeasured] = await slides(pictured('./figura.png', ', proporcao: 1x1'), {
+      assets: anyImage,
+    });
+    const [neither] = await slides(pictured('./figura.png'), { assets: anyImage });
+
+    // The test's images have no bytes, so the export reports each one; nothing else is said.
+    expect(
+      measured.diagnostics.filter((item) => item.code !== 'E_EXPORT_ASSET_UNRESOLVED'),
+    ).toEqual([]);
+    expect(pictureHeight(ignored!)).toBe(267);
+    expect(pictureHeight(unmeasured!)).toBe(802);
+    expect(pictureHeight(neither!)).toBe(401);
   });
 
   it('draws no frame when the slide names no image, or names one the brief left out', async () => {
@@ -202,7 +246,7 @@ describe('questao-estrategica', () => {
     const brief = `---
 template: questao-estrategica
 formats: [grid]
-imagem-1: ./figura.png
+imagem-1: ./800x600.png
 ---
 ::lamina {resposta, imagem: 1}
   Letra A
@@ -210,6 +254,7 @@ imagem-1: ./figura.png
     const [slide] = await slides(brief, { assets: anyImage });
 
     expect(named(slide!, 'moldura')).toHaveLength(1);
+    expect(pictureHeight(slide!)).toBe(602);
     expect(wordsOf(slide!, 'resposta')).toBe('Letra A');
   });
 

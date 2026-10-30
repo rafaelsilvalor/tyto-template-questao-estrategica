@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.2.0
+version: 0.3.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -20,9 +20,9 @@ slots:
   # The cover's picture, full bleed under the words. In the frontmatter: `fundo: ./fundo.png`.
   # Without it the cover is the deep colour, flat.
   fundo: { type: image }
-  # The pictures the middle slides show (a chart, a formula), each in a frame as tall as its
-  # proportion makes it. In the frontmatter: `imagem-1: ./figura.png`; a statement or an answer
-  # shows it with `::lamina {imagem: 1, proporcao: 2x1}`.
+  # The pictures the middle slides show (a chart, a formula), each in a frame as tall as the
+  # picture's own shape makes it (Tyto ADR 0158), from 3:1 to square. In the frontmatter:
+  # `imagem-1: ./figura.png`; a statement or an answer shows it with `::lamina {imagem: 1}`.
   imagem-1: { type: image }
   imagem-2: { type: image }
   imagem-3: { type: image }
@@ -44,8 +44,9 @@ adjustments:
   resposta: { type: flag, applies: [lamina] }
   fecho: { type: flag, applies: [lamina] }
   continua: { type: flag, applies: [lamina] }
-  # Which `imagem-N` a middle slide shows, and its shape, width x height: Tyto hands a template
-  # no image's size, so the slide says it.
+  # Which `imagem-N` a middle slide shows. `proporcao`, its shape, width x height, is what v0.2.0
+  # needed because Tyto handed a template no image's size: since Tyto 0.12 the file's size wins,
+  # and the proportion written is used only for a picture the host could not measure.
   imagem: { type: enum, values: ['1', '2', '3', '4'], applies: [lamina] }
   proporcao:
     {

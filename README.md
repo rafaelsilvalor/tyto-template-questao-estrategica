@@ -22,7 +22,7 @@ templates:
   questao-estrategica:
     source:
       git: https://github.com/rafaelsilvalor/tyto-template-questao-estrategica.git
-      ref: v0.1.0
+      ref: v0.1.1
 ```
 
 Tyto fetches the tag the next time it loads templates, or now with `tyto plugin sync`, and asks
@@ -72,7 +72,7 @@ selo: ./selo.png
 - **The cover**, `{capa}`: its lines name the exam, set at the largest size between
   `exam-floor` and `exam-ceiling` that keeps them in their room — a short title grows, a long
   one shrinks, and one that does not fit at the floor renders with `W_TEMPLATE_OVERFLOW`. The
-  words over the rule are `Questão de fixação` unless the brief writes `titulo:`; `fundo:` is
+  words over the rule are `Questão de fixação` unless the brief writes `::titulo`; `fundo:` is
   the picture under the cover, full bleed, and without it the cover is flat `deep`.
 - **The statement**, an unmarked `::lamina`: its lines up to the first `A)` are the statement,
   and every `X) …` line one option, its letter hanging left of the words.
@@ -87,7 +87,7 @@ selo: ./selo.png
   that proportion makes it at the frame's width, and the picture is fitted whole inside.
   **Tyto hands a template no image's size**, so the slide says it; a picture whose shape differs
   from the proportion written shows paper beside it.
-- **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `fecho:`, its
+- **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `::fecho`, its
   first line the title and the rest the paragraph, `**bold**` kept.
 - **The seal**, `selo: ./selo.png`, 1080 × 140, glued to the foot of the last slide; that
   slide's number rises by the band.

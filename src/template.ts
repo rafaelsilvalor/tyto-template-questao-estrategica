@@ -598,8 +598,14 @@ const SIGN_OFF = {
 } as const;
 
 function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
-  // The frontmatter hands its words over as written, so its lines and its `**bold**` are read
-  // here: the first line is the title, the rest the paragraph.
+  // The first line is the title, the rest the paragraph. A `::fecho` directive arrives parsed,
+  // its lines and its bold already marked; the frontmatter hands its words over as written, so
+  // there the lines and the `**bold**` are read here.
+  const value = context.slots['fecho']?.value;
+  const parsed =
+    value?.kind === 'rich-text'
+      ? lines(value.text).filter((line) => plain(line).trim() !== '')
+      : [];
   const written = slotText(context, 'fecho', '')
     .split('\n')
     .map((line) => line.trim())
@@ -615,6 +621,13 @@ function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
     written.length === 0
       ? `**${DEFAULT_SIGN_OFF_BOLD}**${DEFAULT_SIGN_OFF_REST}`
       : paragraph.join('\n');
+  const box = {
+    x: SIGN_OFF.paragraphX,
+    capTop: SIGN_OFF.paragraphTop,
+    lineHeight: SIGN_OFF.paragraphLineHeight,
+    width: SIGN_OFF.paragraphWidth,
+    align: 'center' as const,
+  };
   return [
     textAt('fecho-titulo', title, {
       x: 0,
@@ -625,14 +638,9 @@ function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
       width: SLIDE_WIDTH,
       align: 'center',
     }),
-    textRuns('fecho-texto', boldRuns(words, style), {
-      x: SIGN_OFF.paragraphX,
-      capTop: SIGN_OFF.paragraphTop,
-      size: SIGN_OFF.paragraphSize,
-      lineHeight: SIGN_OFF.paragraphLineHeight,
-      width: SIGN_OFF.paragraphWidth,
-      align: 'center',
-    }),
+    parsed.length > 1
+      ? richAt('fecho-texto', parsed.slice(1), style, box)
+      : textRuns('fecho-texto', boldRuns(words, style), { ...box, size: style.size }),
     ...likeBar(ink),
   ];
 }

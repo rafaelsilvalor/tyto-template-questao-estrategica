@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.1.0
+version: 0.1.1
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).

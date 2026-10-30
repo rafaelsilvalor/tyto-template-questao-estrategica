@@ -22286,6 +22286,8 @@ var SIGN_OFF = {
   paragraphWidth: 700
 };
 function signOff(context, ink) {
+  const value = context.slots["fecho"]?.value;
+  const parsed = value?.kind === "rich-text" ? lines(value.text).filter((line) => plain(line).trim() !== "") : [];
   const written = slotText(context, "fecho", "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
   const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
   const style2 = {
@@ -22295,6 +22297,13 @@ function signOff(context, ink) {
     color: ink("closing-ink")
   };
   const words = written.length === 0 ? `**${DEFAULT_SIGN_OFF_BOLD}**${DEFAULT_SIGN_OFF_REST}` : paragraph.join("\n");
+  const box = {
+    x: SIGN_OFF.paragraphX,
+    capTop: SIGN_OFF.paragraphTop,
+    lineHeight: SIGN_OFF.paragraphLineHeight,
+    width: SIGN_OFF.paragraphWidth,
+    align: "center"
+  };
   return [
     textAt("fecho-titulo", title, {
       x: 0,
@@ -22305,14 +22314,7 @@ function signOff(context, ink) {
       width: SLIDE_WIDTH,
       align: "center"
     }),
-    textRuns("fecho-texto", boldRuns(words, style2), {
-      x: SIGN_OFF.paragraphX,
-      capTop: SIGN_OFF.paragraphTop,
-      size: SIGN_OFF.paragraphSize,
-      lineHeight: SIGN_OFF.paragraphLineHeight,
-      width: SIGN_OFF.paragraphWidth,
-      align: "center"
-    }),
+    parsed.length > 1 ? richAt("fecho-texto", parsed.slice(1), style2, box) : textRuns("fecho-texto", boldRuns(words, style2), { ...box, size: style2.size }),
     ...likeBar(ink)
   ];
 }

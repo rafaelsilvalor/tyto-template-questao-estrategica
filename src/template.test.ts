@@ -281,4 +281,23 @@ selo: ./selo.png
     expect(wordsOf(written!, 'fecho-titulo')).toBe('Gostou?');
     expect(wordsOf(written!, 'fecho-texto')).toBe('Compartilhe com a turma.');
   });
+
+  it('keeps the bold of a ::fecho directive, in the header or as a directive alike', async () => {
+    const boldIn = async (brief: string) => {
+      const [slide] = await slides(brief);
+      const [node] = texts(slide!).filter((item) => item.name === 'fecho-texto');
+      return node!.runs.flatMap((piece) =>
+        piece.kind === 'text' && piece.weight === 700 ? [piece.text] : [],
+      );
+    };
+
+    expect(
+      await boldIn('::fecho\n  Gostou?\n  **Compartilhe** com a turma.\n\n::lamina {fecho}'),
+    ).toEqual(['Compartilhe']);
+    expect(
+      await boldIn(
+        `---\ntemplate: questao-estrategica\nformats: [grid]\nfecho: |\n  Gostou?\n  **Compartilhe** com a turma.\n---\n::lamina {fecho}`,
+      ),
+    ).toEqual(['Compartilhe']);
+  });
 });

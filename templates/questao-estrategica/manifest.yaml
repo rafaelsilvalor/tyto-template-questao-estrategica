@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.2.0
+version: 0.3.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -20,13 +20,6 @@ slots:
   # The cover's picture, full bleed under the words. In the frontmatter: `fundo: ./fundo.png`.
   # Without it the cover is the deep colour, flat.
   fundo: { type: image }
-  # The pictures the middle slides show (a chart, a formula), each in a frame as tall as its
-  # proportion makes it. In the frontmatter: `imagem-1: ./figura.png`; a statement or an answer
-  # shows it with `::lamina {imagem: 1, proporcao: 2x1}`.
-  imagem-1: { type: image }
-  imagem-2: { type: image }
-  imagem-3: { type: image }
-  imagem-4: { type: image }
   # The house's seal art, 1080 × 140, glued to the foot of the last slide (TYTO-201): the
   # number at the foot rises by it. In the frontmatter: `selo: ./selo.png`.
   selo: { type: image }
@@ -39,21 +32,15 @@ slots:
   # explanation too long for one slide goes on in the next one, marked `{continua}`, which draws
   # no label. `max` counts slides.
   lamina: { type: rich-text, repeat: true, min: 1, max: 10 }
+  # The picture a statement or an answer shows (a chart, a formula), in a frame as tall as the
+  # picture's own shape makes it (Tyto ADR 0158), from 3:1 to square. It belongs to the slide it
+  # is written after (Tyto ADR 0160): `::imagem ./figura.png` under its `::lamina`. Optional.
+  imagem: { type: image, per: lamina }
 adjustments:
   capa: { type: flag, applies: [lamina] }
   resposta: { type: flag, applies: [lamina] }
   fecho: { type: flag, applies: [lamina] }
   continua: { type: flag, applies: [lamina] }
-  # Which `imagem-N` a middle slide shows, and its shape, width x height: Tyto hands a template
-  # no image's size, so the slide says it.
-  imagem: { type: enum, values: ['1', '2', '3', '4'], applies: [lamina] }
-  proporcao:
-    {
-      type: enum,
-      values: [3x1, 5x2, 7x3, 2x1, 16x9, 3x2, 4x3, 1x1],
-      default: 2x1,
-      applies: [lamina],
-    }
 # What a configuration may change (Tyto ADR 0153): the colours and the cover's type sizes. Each default is the reference
 # art's, and `tests/values.test.ts` pins them equal to the ones the code falls back to. The
 # accent is the reference's, not the brand kit's: the kit's marinho accent is another blue.

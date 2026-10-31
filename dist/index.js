@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.34.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-MM4QDHSJ.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.35.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-46PDRZV2.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20224,6 +20224,88 @@ var diagnosticCodes = {
     spec: "docs/adr/0151-plugin-files-install-and-configure-templates.md",
     fatal: false,
     fatality: "The commit locked before loads when there is one; otherwise nothing from that source does."
+  },
+  // The gallery (ADR 0162): a maintained index of templates and plugins, and the CLI verbs that
+  // write its entries into the machine's plugin files. Tolerant per entry, as a plugin file is.
+  E_GALLERY_INDEX_SYNTAX: {
+    severity: "error",
+    summary: "The gallery index could not be read or is not YAML of the shape it needs.",
+    template: "Gallery index '{index}' was not read: {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The gallery lists nothing; templates and plugins already installed still load."
+  },
+  E_GALLERY_INDEX_ENTRY: {
+    severity: "error",
+    summary: "An entry of the gallery index is refused, and the others stand.",
+    template: "Gallery index '{index}': entry {entry} was refused: {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Only that entry is missing from the gallery."
+  },
+  W_GALLERY_INDEX_KEY_UNKNOWN: {
+    severity: "warning",
+    summary: "The gallery index has a key Tyto does not know.",
+    template: "Gallery index '{index}': unknown key {path}; it is ignored.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The key is ignored and the entry stands."
+  },
+  E_GALLERY_INDEX_FETCH: {
+    severity: "error",
+    summary: "The gallery index could not be fetched, and no copy was fetched before.",
+    template: "Could not fetch the gallery index '{index}': {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The gallery lists nothing; templates and plugins already installed still load."
+  },
+  W_GALLERY_INDEX_OFFLINE: {
+    severity: "warning",
+    summary: "The gallery index could not be fetched, and the copy fetched before is shown.",
+    template: "Could not fetch the gallery index '{index}': {problem}. Showing the copy from {fetched}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The earlier copy is read instead, and may miss a newer version."
+  },
+  E_GALLERY_ENTRY_UNKNOWN: {
+    severity: "error",
+    summary: "A gallery command names an entry the index does not list.",
+    template: "The gallery index lists no entry '{entry}'.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_ENGINE: {
+    severity: "error",
+    summary: "A gallery entry needs a plugin API this Tyto does not provide.",
+    template: "'{entry}' needs plugin API {range}, and this Tyto provides {version}; update Tyto first.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written; the entry stays listed."
+  },
+  E_GALLERY_NOT_INSTALLED: {
+    severity: "error",
+    summary: "tyto gallery update names an entry no machine plugin file holds.",
+    template: "'{entry}' is not in any plugin file of this machine; install it first.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_ENTRY_EDITED: {
+    severity: "error",
+    summary: "The plugin file entry the gallery wrote was changed by hand since.",
+    template: "'{entry}' in '{file}' was changed by hand since the gallery wrote it ({written} is now {found}); nothing was moved. Pass --force to move it anyway.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_WRITE: {
+    severity: "error",
+    summary: "The gallery could not write an entry into a plugin file without changing the rest of it.",
+    template: "Could not write '{entry}' into '{file}': {problem}. The file was left as it was.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
   },
   E_SCENE_SHAPE: {
     severity: "error",
@@ -21053,6 +21135,17 @@ var diagnosticCodes = {
     fatal: true,
     fatality: "Nothing is rendered: there is no delivery to write into."
   },
+  // ADR 0161: a delivery's export copies the brief's images into its `assets/`, and a file of
+  // the same name with other bytes is the person's. A warning, because the artwork is exactly
+  // what the brief asked for; it exists so the copy that did not happen is never silent.
+  W_DELIVERY_ASSET_KEPT: {
+    severity: "warning",
+    summary: "A delivery's assets folder already holds a different file under the name an image would be copied to.",
+    template: "Kept '{path}', which differs from the image '{source}' the brief uses; that image was not copied.",
+    spec: "docs/adr/0161-a-deliverys-export-copies-the-briefs-images-into-its-assets.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
   E_TRUST_FILE: {
     severity: "error",
     summary: "TYTO_HOME/trust.json cannot be read or written.",
@@ -21624,7 +21717,7 @@ function colorValue(context, name, fallback) {
   return typeof value === "string" ? value : fallback;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.34.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.35.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -21726,7 +21819,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21763,7 +21856,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.5.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.6.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21849,7 +21942,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -21889,7 +21982,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");

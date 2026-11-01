@@ -4,7 +4,7 @@ import { type FaceCache, defineTemplate, formatCatalogue, parseManifest } from '
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { build } from './template.js';
+import { build, optionsOf } from './template.js';
 
 import type { Frame, SceneNode, SuppliedValues, TextNode } from '@tyto/core';
 
@@ -99,6 +99,16 @@ function baseline(node: TextNode): number {
   return capTop(node) + (lineCount(node) - 1) * size * node.lineHeight + size * CAP_HEIGHT;
 }
 
+/** A text's laid lines, each as its words joined by single spaces. */
+function linesOf(node: TextNode): string[] {
+  const lines: string[] = [''];
+  for (const run of node.runs) {
+    if (run.kind === 'break') lines.push('');
+    else lines[lines.length - 1] += run.text;
+  }
+  return lines.map((line) => line.trim().split(/\s+/u).join(' '));
+}
+
 function lastLineWords(node: TextNode): string[] {
   const lines: string[] = [''];
   for (const run of node.runs) {
@@ -184,26 +194,39 @@ describe('the statement slide’s rhythm', () => {
 });
 
 describe('orphans past the limits', () => {
-  // A paragraph whose fitted setting ends on one word, under the half-em face: found by
-  // turning both limits off, which leaves the template nothing to move.
-  const off = { 'orphan-shrink': { value: 0 }, 'orphan-tracking': { value: 0 } };
-
-  it('draws the slide and names the word in W_TEMPLATE_ORPHAN when no limit is left', async () => {
-    const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${ORPHANED}\n`, off);
+  it('draws the slide and names the word when nothing, a rebreak included, clears it', async () => {
+    const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${PAST_LIMITS}\n`);
     const frame = result.value.scene.artworks[0]!.frames[0]!;
 
-    expect(lastLineWords(text(frame, 'explicacao'))).toEqual(['princípio.']);
+    expect(lastLineWords(text(frame, 'explicacao'))).toEqual(['decisões.']);
     expect(
       result.diagnostics
         .filter((item) => item.code === 'W_TEMPLATE_ORPHAN')
         .map((item) => item.message),
     ).toEqual([
-      "Artwork 'lamina-1' ends a paragraph on the single word 'princípio.' in format 'grid': no size or letter spacing within the template's limits moved another word down to it.",
+      "Artwork 'lamina-1' ends a paragraph on the single word 'decisões.' in format 'grid': no size or letter spacing within the template's limits moved another word down to it.",
     ]);
   });
 
-  it('clears the same paragraph with the default limits, which is the control', async () => {
-    const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${ORPHANED}\n`);
+  it('clears the screenshot’s explanation by a rebreak alone, letter spacing and size off', async () => {
+    const off = { 'orphan-shrink': { value: 0 }, 'orphan-tracking': { value: 0 } };
+    const result = await compiled(
+      `::lamina {resposta}
+  Letra D
+  ${EXPLANATION}
+`,
+      off,
+    );
+    const frame = result.value.scene.artworks[0]!.frames[0]!;
+    const explanation = text(frame, 'explicacao');
+
+    expect(lastLineWords(explanation).length).toBeGreaterThan(1);
+    expect(explanation.letterSpacing).toBe(0);
+    expect(result.diagnostics.map((item) => item.code)).not.toContain('W_TEMPLATE_ORPHAN');
+  });
+
+  it('clears the screenshot’s explanation with the default limits, which is the control', async () => {
+    const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${EXPLANATION}\n`);
     const frame = result.value.scene.artworks[0]!.frames[0]!;
 
     expect(lastLineWords(text(frame, 'explicacao')).length).toBeGreaterThan(1);
@@ -211,41 +234,106 @@ describe('orphans past the limits', () => {
   });
 });
 
-describe('an option’s orphan', () => {
-  // An option that wraps and, at the statement's fitted size, leaves its last word alone; the
-  // statement's own size is not the option's to change, so only its letter spacing moves.
-  const option =
-    'O registro de visitas ao Sistema Municipal de Bibliotecas Públicas e Escolares da região metropolitana';
-  const brief = `::lamina
-  Qual documento organiza o atendimento?
-  A) O calendário anual.
-  B) ${option}
-`;
-  const off = { 'orphan-shrink': { value: 0 }, 'orphan-tracking': { value: 0 } };
-  const named = (diagnostics: readonly { code: string; message: string }[]) =>
-    diagnostics.filter(
-      (item) => item.code === 'W_TEMPLATE_ORPHAN' && item.message.includes("'metropolitana'"),
+describe('options (TYTO-520)', () => {
+  /** The maintainer's statement and options, from the brief that failed to render. */
+  const STATEMENT =
+    'As afirmativas a seguir descrevem acertadamente uma escola pautada na gestão democrática, à exceção de uma. Assinale-a.';
+  const OPTIONS = [
+    'A) Liberdade de aprender, ensinar e divulgar conhecimentos.',
+    'B) Pluralismo de ideias e participação da comunidade nas decisões.',
+    'C) Práticas educativas fundamentadas nos direitos humanos.',
+    'D) Relações hierárquicas verticais para cumprir metas estabelecidas pelas secretarias.',
+    'E) Formação democrática, diálogo, transparência e respeito.',
+  ];
+  const slideOf = (options: readonly string[]) =>
+    `::lamina\n  ${STATEMENT}\n${options.map((line) => `  ${line}\n`).join('')}`;
+
+  it('reads a `\\` inside an option as a break in it, never as an option with no words', async () => {
+    const broken = OPTIONS.map((line, index) =>
+      index === 0 ? line.replace('ensinar e divulgar', 'ensinar e\\divulgar') : line,
     );
+    const result = await compiled(slideOf(broken));
+    const frame = result.value.scene.artworks[0]!.frames[0]!;
+    const names = nodes(frame).flatMap((node) => (node.name === undefined ? [] : [node.name]));
 
-  it('names the option’s last word when no limit is left', async () => {
-    const result = await compiled(brief, off);
-
-    expect(named(result.diagnostics)).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith('alternativa-'))).toHaveLength(5);
+    expect(names).not.toContain('alternativa-6');
+    expect(linesOf(text(frame, 'alternativa-1')).slice(-1)).toEqual(['divulgar conhecimentos.']);
   });
 
-  it('clears it by letter spacing with the default limits', async () => {
-    const result = await compiled(brief);
-    const frame = result.value.scene.artworks[0]!.frames[0]!;
+  it('reads the option forms: `X)` in either case starts one, `X.` too after the first', () => {
+    const options = optionsOf([
+      'A) um',
+      'dois',
+      'a) três',
+      'B. quatro',
+      'etc. e cinco',
+      'II. seis',
+    ]);
 
-    expect(named(result.diagnostics)).toEqual([]);
-    expect(lastLineWords(text(frame, 'alternativa-2')).length).toBeGreaterThan(1);
-    expect(text(frame, 'alternativa-2').letterSpacing).not.toBe(0);
+    expect(options).toEqual([
+      { letter: 'A)', words: 'um\ndois' },
+      { letter: 'a)', words: 'três' },
+      { letter: 'B.', words: 'quatro\netc. e cinco\nII. seis' },
+    ]);
+  });
+
+  it('moves a word down beside a lonely last one, a word that would have fitted above', async () => {
+    // Under the half-em face this option, as written, ends on "divulgar" alone.
+    const result = await compiled(
+      slideOf(['A) Liberdade de aprender, ensinar e divulgar', 'B) Pluralismo de ideias.']),
+    );
+    const frame = result.value.scene.artworks[0]!.frames[0]!;
+    const option = text(frame, 'alternativa-1');
+    const [first = '', last = ''] = linesOf(option);
+
+    expect([first, last]).toEqual(['Liberdade de aprender, ensinar', 'e divulgar']);
+    // Half an em a character: "e" fitted on the first line, so the break was moved, not met.
+    expect(`${first} e`.length * 0.5 * sizeOf(option)).toBeLessThanOrEqual(option.box.w!);
+    expect(result.diagnostics.map((item) => item.code)).not.toContain('W_TEMPLATE_ORPHAN');
+  });
+
+  it('moves a word down in the statement too, letter spacing and size off', async () => {
+    // Under the half-em face this statement, as written, ends on "na" alone.
+    const off = { 'orphan-shrink': { value: 0 }, 'orphan-tracking': { value: 0 } };
+    const statement = 'As afirmativas a seguir descrevem acertadamente uma escola pautada na';
+    const result = await compiled(
+      `::lamina
+  ${statement}
+  A) Um.
+  B) Dois.
+`,
+      off,
+    );
+    const frame = result.value.scene.artworks[0]!.frames[0]!;
+    const body = text(frame, 'enunciado');
+    const lines = linesOf(body);
+
+    expect(lines.at(-1)).toBe('pautada na');
+    expect(`${lines.at(-2) ?? ''} pautada`.length * 0.5 * sizeOf(body)).toBeLessThanOrEqual(
+      body.box.w!,
+    );
+    expect(result.diagnostics.map((item) => item.code)).not.toContain('W_TEMPLATE_ORPHAN');
+  });
+
+  it('names an option’s last word that nothing can move, a whole line above it', async () => {
+    const long = 'Inconstitucionalissimamente-inconstitucionalissimamente fim.';
+    const result = await compiled(slideOf([OPTIONS[0]!, `B) ${long}`]));
+
+    expect(
+      result.diagnostics
+        .filter((item) => item.code === 'W_TEMPLATE_ORPHAN')
+        .map((item) => /word '([^']+)'/u.exec(item.message)?.[1]),
+    ).toEqual(['fim.']);
   });
 });
 
 /**
- * The screenshot's explanation: under the half-em face, its fitted setting ends on
- * "princípio." alone, and the default limits clear it. Found by compiling growing prefixes of a
- * longer paragraph both ways; 5 of 41 prefixes behave so, this one among them.
+ * The screenshot's first sentence: under the half-em face its fitted setting ends on
+ * "decisões." alone, and neither a rebreak (the line above would be left alone), letter
+ * spacing nor a smaller size clears it. Found by compiling growing prefixes of the
+ * explanation.
  */
-const ORPHANED = EXPLANATION;
+const PAST_LIMITS =
+  'A gestão democrática pressupõe participação coletiva, diálogo, transparência e ' +
+  'compartilhamento das decisões.';

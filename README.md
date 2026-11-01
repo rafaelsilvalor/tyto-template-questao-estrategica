@@ -22,7 +22,7 @@ templates:
   questao-estrategica:
     source:
       git: https://github.com/rafaelsilvalor/tyto-template-questao-estrategica.git
-      ref: v0.4.0
+      ref: v0.4.1
 ```
 
 Tyto fetches the tag the next time it loads templates, or now with `tyto plugin sync`, and asks
@@ -75,8 +75,11 @@ selo: ./selo.png
   words over the rule are `Questão de fixação` unless the brief writes `::titulo`; `fundo:` is
   the picture under the cover, full bleed, and without it the cover is flat `deep`.
 - **The statement**, an unmarked `::lamina`: its lines up to the first `A)` are the statement,
-  and every `X) …` line one option, its letter on the statement's left edge. The statement is
-  sized to its room, as the cover is; the answer's explanation too.
+  and every `X) …` line one option, its letter on the statement's left edge: one to three
+  letters, either case, before a `)`; after the first option, one letter and a full stop
+  (`B. …`) starts one too. Any other line after the first option continues the option above
+  on a line of its own, so a `\` or a new line inside an option breaks it where you wrote it
+  (TYTO-520). The statement is sized to its room, as the cover is; the answer's explanation too.
 - **The answer**, `{resposta}`: its first line in large (`Letra B`), the rest the explanation.
 - **A slide that goes on** from the one before, `{continua}` beside the mark (an unmarked
   statement or `{resposta, continua}`): no label, its words start where the label would. A
@@ -129,9 +132,11 @@ statement (logo to label, label to statement, statement to options), 102 and 165
 (logo to label, answer to explanation), and under the last block the same gap as over the first,
 so the middle is centred. The words are set at the largest size that keeps every gap at least
 `gap-floor` (1) times the reference's; a short text leaves them wider, all in proportion. A
-paragraph that would end on a line of one word is set again (`settle`): letter spacing within
-`orphan-tracking` (0.01 em), then a size up to `orphan-shrink` (8%) smaller; an option, whose size
-is the statement's, moves its letter spacing only. Past those limits the slide is drawn and
+paragraph that would end on a line of one word is set again (`settle`, Tyto kit 0.8): first the
+line above breaks one word earlier, at the same size; then letter spacing within
+`orphan-tracking` (0.01 em); then a size up to `orphan-shrink` (8%) smaller. An option, whose
+size is the statement's, moves a word down or its letter spacing only. Past those limits the
+slide is drawn and
 `W_TEMPLATE_ORPHAN` names the word.
 
 ## Development

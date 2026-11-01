@@ -353,8 +353,40 @@ const STATEMENT = {
  */
 const STATEMENT_GAPS = { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP };
 
-/** An option line: `A) words`, the letter one to three characters before a `)`. */
+/** An option line: `A) words`, the letter one to three characters, either case, before a `)`. */
 const OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
+
+/**
+ * After the first option, `B. words` starts an option too: one letter and a full stop, as an
+ * exam copied into a brief may write it. Not before the first `X)`, where `I.` or `A.` numbers a
+ * statement's items, and never two letters or more, which would read `etc.` as a letter.
+ */
+const LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
+
+/** One option: its letter and its words, a line break wherever the brief broke them. */
+interface Option {
+  readonly letter: string;
+  readonly words: string;
+}
+
+/**
+ * The options, from the first `X)` line on. A line that starts no option continues the one
+ * above on a line of its own (TYTO-520): a `\` or a new line inside an option is a break the
+ * author asked for, not an option with no letter and no words.
+ */
+export function optionsOf(lines: readonly string[]): Option[] {
+  const options: Option[] = [];
+  for (const line of lines) {
+    const [, letter, words = ''] = OPTION.exec(line) ?? LATER_OPTION.exec(line) ?? [];
+    const last = options.at(-1);
+    if (letter !== undefined || last === undefined) {
+      options.push({ letter: letter ?? '', words: letter === undefined ? line.trim() : words });
+    } else {
+      options[options.length - 1] = { letter: last.letter, words: `${last.words}\n${line.trim()}` };
+    }
+  }
+  return options;
+}
 
 type StatementBlock = 'label' | 'body' | 'picture' | 'options';
 
@@ -362,7 +394,7 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
   const all = slideRichLines(context);
   const firstOption = all.findIndex((line) => OPTION.test(plain(line)));
   const body = firstOption < 0 ? all : all.slice(0, firstOption);
-  const options = firstOption < 0 ? [] : all.slice(firstOption);
+  const options = optionsOf((firstOption < 0 ? [] : all.slice(firstOption)).map(plain));
   // A statement that goes on from the slide before (`{continua}`) draws no label.
   const continued = context.adjustments['continua'] === true;
   const picture = pictureOf(context);
@@ -401,13 +433,16 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
     if (body.length > 0) {
       const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
       const draftAt = (capTop: number): TextDraft =>
-        richAt('enunciado', body, style, {
-          x: STATEMENT.x,
-          capTop,
-          lineHeight: STATEMENT.bodyLineHeight,
-          width: STATEMENT.bodyWidth,
-          letterSpacing: tuning.letterSpacing,
-        });
+        redrawn(
+          richAt('enunciado', body, style, {
+            x: STATEMENT.x,
+            capTop,
+            lineHeight: STATEMENT.bodyLineHeight,
+            width: STATEMENT.bodyWidth,
+            letterSpacing: tuning.letterSpacing,
+          }),
+          tuning.runs,
+        );
       text = draftAt(0);
       const count = lineCount(context, text, body, size, STATEMENT.bodyWidth);
       add(
@@ -419,25 +454,25 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
     if (options.length > 0) {
       const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
       const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
-      const written = options.map((line) => {
-        const [, letter = '', rest = ''] = OPTION.exec(plain(line)) ?? [];
-        return { letter, rest };
-      });
+      const written = options;
       const wordsAt = (index: number, capTop: number): TextDraft =>
-        textAt(`alternativa-${index + 1}`, written[index]?.rest ?? '', {
-          x: textX,
-          capTop,
-          size: optionSize,
-          weight: LIGHT,
-          color: ink('body-ink'),
-          lineHeight: STATEMENT.optionLineHeight,
-          width,
-          letterSpacing: tuning.extras[index] ?? 0,
-        });
+        redrawn(
+          textAt(`alternativa-${index + 1}`, written[index]?.words ?? '', {
+            x: textX,
+            capTop,
+            size: optionSize,
+            weight: LIGHT,
+            color: ink('body-ink'),
+            lineHeight: STATEMENT.optionLineHeight,
+            width,
+            letterSpacing: tuning.extras[index] ?? 0,
+          }),
+          tuning.extraRuns?.[index],
+        );
       const counts = written.map((option, index) => {
         const words = wordsAt(index, 0);
         extras.push({ text: words, size: optionSize });
-        return lineCount(context, words, [option.rest], optionSize, width);
+        return lineCount(context, words, option.words.split('\n'), optionSize, width);
       });
       const leading = optionSize * STATEMENT.optionLineHeight;
       /** Each option's capitals' top, from the first's. */
@@ -520,6 +555,10 @@ interface Tuning {
   readonly size: number;
   readonly letterSpacing: number;
   readonly extras: readonly number[];
+  /** The text's runs as the kit rebroke them (Tyto TYTO-521), drawn instead of its own. */
+  readonly runs?: readonly TextRun[];
+  /** Each extra's rebroken runs, the same way. */
+  readonly extraRuns?: readonly (readonly TextRun[] | undefined)[];
 }
 
 /**
@@ -568,6 +607,9 @@ function fitStack(
     return drawn(arranged.stacked, arranged.spaced.tops);
   }
 
+  // The text first, by a break one word earlier, letter spacing and size (Tyto TYTO-521);
+  // then each option at that size by a break or its letter spacing alone, since the options
+  // follow the statement's size.
   let tuning = plainAt(fitted);
   const orphans: string[] = [];
   const main = arrange(tuning).stacked.text;
@@ -585,7 +627,6 @@ function fitStack(
     tuning = settled.laid;
     if (settled.orphan !== undefined) orphans.push(settled.orphan);
   }
-  // The options follow the statement's size, so only their letter spacing is theirs to move.
   for (const [index, extra] of arrange(tuning).stacked.extras.entries()) {
     const settled = settle({
       size: extra.size,
@@ -594,7 +635,9 @@ function fitStack(
       layout: (setting) => {
         const spacing = [...tuning.extras];
         spacing[index] = setting.letterSpacing;
-        const tried = { ...tuning, extras: spacing };
+        const rebroken = [...(tuning.extraRuns ?? [])];
+        rebroken[index] = setting.runs;
+        const tried = { ...tuning, extras: spacing, extraRuns: rebroken };
         const arranged = arrange(tried);
         const read = arranged.stacked.extras[index]?.text ?? extra.text;
         return { text: read, fits: arranged.fits, laid: tried };
@@ -824,13 +867,16 @@ function answer(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
       const size = tuning.size;
       const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
       const draftAt = (capTop: number): TextDraft =>
-        richAt('explicacao', rest, style, {
-          x: ANSWER.x,
-          capTop,
-          lineHeight: ANSWER.bodyLineHeight,
-          width: ANSWER.bodyWidth,
-          letterSpacing: tuning.letterSpacing,
-        });
+        redrawn(
+          richAt('explicacao', rest, style, {
+            x: ANSWER.x,
+            capTop,
+            lineHeight: ANSWER.bodyLineHeight,
+            width: ANSWER.bodyWidth,
+            letterSpacing: tuning.letterSpacing,
+          }),
+          tuning.runs,
+        );
       text = draftAt(0);
       const count = lineCount(context, text, rest, size, ANSWER.bodyWidth);
       if (pieces.length > 0) weights.push(ANSWER_GAPS.headToBody);
@@ -1039,6 +1085,15 @@ function richAt(name: string, written: readonly RichText[], style: RunStyle, box
     ...runsOf(line, style, { bold: BOLD }),
   ]);
   return textRuns(name, runs.length === 0 ? [run('', style)] : runs, { ...box, size: style.size });
+}
+
+/**
+ * A text drawn with the runs the kit rebroke it into (Tyto TYTO-521), its place and box kept;
+ * itself when there are none.
+ */
+function redrawn(draft: TextDraft, runs: readonly TextRun[] | undefined): TextDraft {
+  const [head, ...tail] = runs ?? [];
+  return head === undefined ? draft : { ...draft, runs: [head, ...tail] };
 }
 
 function textRuns(

@@ -21839,7 +21839,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21876,7 +21876,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.7.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.8.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21963,11 +21963,18 @@ function settle2(request) {
   const limits = request.limits ?? ORPHAN_LIMITS;
   const first = layout({ size, letterSpacing: 0 });
   const orphanAt = (text2) => {
-    const measured = measure(text2);
-    return measured === void 0 ? void 0 : orphanOf(text2.runs, measured.runs);
+    const measured2 = measure(text2);
+    return measured2 === void 0 ? void 0 : orphanOf(text2.runs, measured2.runs);
   };
-  const found = orphanAt(first.text);
+  const measured = measure(first.text);
+  const found = measured === void 0 ? void 0 : orphanOf(first.text.runs, measured.runs);
   if (found === void 0) return { setting: { size, letterSpacing: 0 }, laid: first.laid };
+  const rebroken = measured === void 0 || limits.rebreak === false ? void 0 : rebreak(first.text.runs, measured.runs);
+  if (rebroken !== void 0) {
+    const setting = { size, letterSpacing: 0, runs: rebroken };
+    const tried = layout(setting);
+    if (tried.fits && orphanAt(tried.text) === void 0) return { setting, laid: tried.laid };
+  }
   const smallest = Math.ceil(size * (1 - limits.shrink));
   for (let candidate = size; candidate >= smallest; candidate -= SIZE_STEP) {
     for (const em of trackings(limits.tracking)) {
@@ -21992,26 +21999,85 @@ function round(value) {
   return Math.round(value * 1e3) / 1e3;
 }
 function orphanOf(written, laid) {
+  return firstOrphaned(written, laid)?.word;
+}
+function firstOrphaned(written, laid) {
   const paragraphs = linesOf(written).map((line2) => wordsOf(line2).length);
-  const lines2 = linesOf(laid).map(wordsOf);
+  const lines2 = linesOf(laid);
   let line = 0;
-  for (const count of paragraphs) {
+  for (const [paragraph, count] of paragraphs.entries()) {
     if (count === 0) {
       line += 1;
       continue;
     }
     let seen = 0;
-    let taken = 0;
-    let last = [];
+    const taken = [];
     while (seen < count && line < lines2.length) {
-      last = lines2[line] ?? [];
-      seen += last.length;
-      taken += 1;
+      const text2 = lines2[line] ?? "";
+      seen += wordsOf(text2).length;
+      taken.push(text2);
       line += 1;
     }
-    if (taken > 1 && last.length === 1) return last[0];
+    const last = wordsOf(taken.at(-1) ?? "");
+    if (taken.length > 1 && last.length === 1) {
+      return { paragraph, lines: taken, word: last[0] ?? "" };
+    }
   }
   return void 0;
+}
+function rebreak(written, laid) {
+  const orphaned = firstOrphaned(written, laid);
+  if (orphaned === void 0) return void 0;
+  const pieces = (text2) => text2.split(/ +/u).filter((piece) => piece.trim() !== "");
+  const before = orphaned.lines.slice(0, -1);
+  const moved = before.reduce((sum, line) => sum + pieces(line).length, 0) - 1;
+  if (moved <= 0) return void 0;
+  return withBreakBefore(written, orphaned.paragraph, moved);
+}
+function withBreakBefore(runs, paragraph, piece) {
+  const result = [];
+  let current = 0;
+  let seen = -1;
+  let afterSpace = true;
+  let done = false;
+  for (const run2 of runs) {
+    if (run2.kind === "break") {
+      current += 1;
+      afterSpace = true;
+      result.push(run2);
+      continue;
+    }
+    if (done || current !== paragraph) {
+      result.push(run2);
+      continue;
+    }
+    let cut = -1;
+    for (let index = 0; index < run2.text.length && cut < 0; index += 1) {
+      const space = run2.text[index] === " ";
+      if (!space && afterSpace) {
+        seen += 1;
+        if (seen === piece) cut = index;
+      }
+      afterSpace = space;
+    }
+    if (cut < 0) {
+      result.push(run2);
+      continue;
+    }
+    const head = run2.text.slice(0, cut).replace(/ +$/u, "");
+    if (head !== "") result.push({ ...run2, text: head });
+    else trimLast(result);
+    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut) });
+    done = true;
+  }
+  return result;
+}
+function trimLast(runs) {
+  const last = runs.at(-1);
+  if (last?.kind !== "text") return;
+  const text2 = last.text.replace(/ +$/u, "");
+  if (text2 === "") runs.pop();
+  else runs[runs.length - 1] = { ...last, text: text2 };
 }
 function linesOf(runs) {
   const lines2 = [""];
@@ -22055,7 +22121,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22095,7 +22161,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22370,11 +22436,26 @@ var STATEMENT = {
 };
 var STATEMENT_GAPS = { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP };
 var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
+var LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
+function optionsOf(lines2) {
+  const options = [];
+  for (const line of lines2) {
+    const [, letter, words = ""] = OPTION.exec(line) ?? LATER_OPTION.exec(line) ?? [];
+    const last = options.at(-1);
+    if (letter !== void 0 || last === void 0) {
+      options.push({ letter: letter ?? "", words: letter === void 0 ? line.trim() : words });
+    } else {
+      options[options.length - 1] = { letter: last.letter, words: `${last.words}
+${line.trim()}` };
+    }
+  }
+  return options;
+}
 function statement(context, ink, lift) {
   const all = slideRichLines(context);
   const firstOption = all.findIndex((line) => OPTION.test(plain(line)));
   const body = firstOption < 0 ? all : all.slice(0, firstOption);
-  const options = firstOption < 0 ? [] : all.slice(firstOption);
+  const options = optionsOf((firstOption < 0 ? [] : all.slice(firstOption)).map(plain));
   const continued = context.adjustments["continua"] === true;
   const picture = pictureOf(context);
   const stackAt = (tuning) => {
@@ -22407,13 +22488,16 @@ function statement(context, ink, lift) {
     }
     if (body.length > 0) {
       const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
-      const draftAt = (capTop) => richAt("enunciado", body, style2, {
-        x: STATEMENT.x,
-        capTop,
-        lineHeight: STATEMENT.bodyLineHeight,
-        width: STATEMENT.bodyWidth,
-        letterSpacing: tuning.letterSpacing
-      });
+      const draftAt = (capTop) => redrawn(
+        richAt("enunciado", body, style2, {
+          x: STATEMENT.x,
+          capTop,
+          lineHeight: STATEMENT.bodyLineHeight,
+          width: STATEMENT.bodyWidth,
+          letterSpacing: tuning.letterSpacing
+        }),
+        tuning.runs
+      );
       text2 = draftAt(0);
       const count = lineCount(context, text2, body, size, STATEMENT.bodyWidth);
       add(
@@ -22425,24 +22509,24 @@ function statement(context, ink, lift) {
     if (options.length > 0) {
       const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
       const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
-      const written = options.map((line) => {
-        const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
-        return { letter, rest };
-      });
-      const wordsAt = (index, capTop) => textAt(`alternativa-${index + 1}`, written[index]?.rest ?? "", {
-        x: textX,
-        capTop,
-        size: optionSize,
-        weight: LIGHT,
-        color: ink("body-ink"),
-        lineHeight: STATEMENT.optionLineHeight,
-        width,
-        letterSpacing: tuning.extras[index] ?? 0
-      });
+      const written = options;
+      const wordsAt = (index, capTop) => redrawn(
+        textAt(`alternativa-${index + 1}`, written[index]?.words ?? "", {
+          x: textX,
+          capTop,
+          size: optionSize,
+          weight: LIGHT,
+          color: ink("body-ink"),
+          lineHeight: STATEMENT.optionLineHeight,
+          width,
+          letterSpacing: tuning.extras[index] ?? 0
+        }),
+        tuning.extraRuns?.[index]
+      );
       const counts = written.map((option, index) => {
         const words = wordsAt(index, 0);
         extras.push({ text: words, size: optionSize });
-        return lineCount(context, words, [option.rest], optionSize, width);
+        return lineCount(context, words, option.words.split("\n"), optionSize, width);
       });
       const leading = optionSize * STATEMENT.optionLineHeight;
       const topsFrom = (first) => {
@@ -22539,7 +22623,9 @@ function fitStack(context, name, stackAt, bottom) {
       layout: (setting) => {
         const spacing = [...tuning.extras];
         spacing[index] = setting.letterSpacing;
-        const tried = { ...tuning, extras: spacing };
+        const rebroken = [...tuning.extraRuns ?? []];
+        rebroken[index] = setting.runs;
+        const tried = { ...tuning, extras: spacing, extraRuns: rebroken };
         const arranged2 = arrange(tried);
         const read = arranged2.stacked.extras[index]?.text ?? extra.text;
         return { text: read, fits: arranged2.fits, laid: tried };
@@ -22691,13 +22777,16 @@ function answer(context, ink, lift) {
     if (rest.length > 0) {
       const size = tuning.size;
       const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
-      const draftAt = (capTop) => richAt("explicacao", rest, style2, {
-        x: ANSWER.x,
-        capTop,
-        lineHeight: ANSWER.bodyLineHeight,
-        width: ANSWER.bodyWidth,
-        letterSpacing: tuning.letterSpacing
-      });
+      const draftAt = (capTop) => redrawn(
+        richAt("explicacao", rest, style2, {
+          x: ANSWER.x,
+          capTop,
+          lineHeight: ANSWER.bodyLineHeight,
+          width: ANSWER.bodyWidth,
+          letterSpacing: tuning.letterSpacing
+        }),
+        tuning.runs
+      );
       text2 = draftAt(0);
       const count = lineCount(context, text2, rest, size, ANSWER.bodyWidth);
       if (pieces.length > 0) weights.push(ANSWER_GAPS.headToBody);
@@ -22832,6 +22921,10 @@ function richAt(name, written, style2, box) {
     ...runsOf(line, style2, { bold: BOLD3 })
   ]);
   return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
+}
+function redrawn(draft, runs) {
+  const [head, ...tail] = runs ?? [];
+  return head === void 0 ? draft : { ...draft, runs: [head, ...tail] };
 }
 function textRuns(name, runs, placed) {
   const lineHeight = placed.lineHeight ?? 1;

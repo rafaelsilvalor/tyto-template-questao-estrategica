@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.34.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-MM4QDHSJ.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.36.1/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-AVQMXBFG.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20225,6 +20225,88 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "The commit locked before loads when there is one; otherwise nothing from that source does."
   },
+  // The gallery (ADR 0162): a maintained index of templates and plugins, and the CLI verbs that
+  // write its entries into the machine's plugin files. Tolerant per entry, as a plugin file is.
+  E_GALLERY_INDEX_SYNTAX: {
+    severity: "error",
+    summary: "The gallery index could not be read or is not YAML of the shape it needs.",
+    template: "Gallery index '{index}' was not read: {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The gallery lists nothing; templates and plugins already installed still load."
+  },
+  E_GALLERY_INDEX_ENTRY: {
+    severity: "error",
+    summary: "An entry of the gallery index is refused, and the others stand.",
+    template: "Gallery index '{index}': entry {entry} was refused: {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Only that entry is missing from the gallery."
+  },
+  W_GALLERY_INDEX_KEY_UNKNOWN: {
+    severity: "warning",
+    summary: "The gallery index has a key Tyto does not know.",
+    template: "Gallery index '{index}': unknown key {path}; it is ignored.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The key is ignored and the entry stands."
+  },
+  E_GALLERY_INDEX_FETCH: {
+    severity: "error",
+    summary: "The gallery index could not be fetched, and no copy was fetched before.",
+    template: "Could not fetch the gallery index '{index}': {problem}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The gallery lists nothing; templates and plugins already installed still load."
+  },
+  W_GALLERY_INDEX_OFFLINE: {
+    severity: "warning",
+    summary: "The gallery index could not be fetched, and the copy fetched before is shown.",
+    template: "Could not fetch the gallery index '{index}': {problem}. Showing the copy from {fetched}.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "The earlier copy is read instead, and may miss a newer version."
+  },
+  E_GALLERY_ENTRY_UNKNOWN: {
+    severity: "error",
+    summary: "A gallery command names an entry the index does not list.",
+    template: "The gallery index lists no entry '{entry}'.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_ENGINE: {
+    severity: "error",
+    summary: "A gallery entry needs a plugin API this Tyto does not provide.",
+    template: "'{entry}' needs plugin API {range}, and this Tyto provides {version}; update Tyto first.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written; the entry stays listed."
+  },
+  E_GALLERY_NOT_INSTALLED: {
+    severity: "error",
+    summary: "tyto gallery update names an entry no machine plugin file holds.",
+    template: "'{entry}' is not in any plugin file of this machine; install it first.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_ENTRY_EDITED: {
+    severity: "error",
+    summary: "The plugin file entry the gallery wrote was changed by hand since.",
+    template: "'{entry}' in '{file}' was changed by hand since the gallery wrote it ({written} is now {found}); nothing was moved. Pass --force to move it anyway.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
+  E_GALLERY_WRITE: {
+    severity: "error",
+    summary: "The gallery could not write an entry into a plugin file without changing the rest of it.",
+    template: "Could not write '{entry}' into '{file}': {problem}. The file was left as it was.",
+    spec: "docs/adr/0162-a-gallery-index-lists-templates-and-plugins.md",
+    fatal: false,
+    fatality: "Nothing is written."
+  },
   E_SCENE_SHAPE: {
     severity: "error",
     summary: "A scene does not match the IR schema.",
@@ -20536,6 +20618,16 @@ var diagnosticCodes = {
     summary: "An artwork's content runs past the room its template has for it in one format.",
     template: "Artwork '{artwork}' does not fit format '{format}': its content runs {overflow}px past the room the template has, and that part is cut.",
     spec: "docs/adr/0058-a-template-reports-warnings-beside-its-frame.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
+  // Raised by a template the same way (ADR 0167): every adjustment it allowed itself was tried
+  // and a paragraph still ends on a line of one word. The art is drawn with that line.
+  W_TEMPLATE_ORPHAN: {
+    severity: "warning",
+    summary: "A paragraph of an artwork ends on a line holding a single word in one format.",
+    template: "Artwork '{artwork}' ends a paragraph on the single word '{word}' in format '{format}': no size or letter spacing within the template's limits moved another word down to it.",
+    spec: "docs/adr/0167-a-template-spaces-its-blocks-by-weight-and-keeps-orphans-off-its-text.md",
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
@@ -21053,6 +21145,17 @@ var diagnosticCodes = {
     fatal: true,
     fatality: "Nothing is rendered: there is no delivery to write into."
   },
+  // ADR 0161: a delivery's export copies the brief's images into its `assets/`, and a file of
+  // the same name with other bytes is the person's. A warning, because the artwork is exactly
+  // what the brief asked for; it exists so the copy that did not happen is never silent.
+  W_DELIVERY_ASSET_KEPT: {
+    severity: "warning",
+    summary: "A delivery's assets folder already holds a different file under the name an image would be copied to.",
+    template: "Kept '{path}', which differs from the image '{source}' the brief uses; that image was not copied.",
+    spec: "docs/adr/0161-a-deliverys-export-copies-the-briefs-images-into-its-assets.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
   E_TRUST_FILE: {
     severity: "error",
     summary: "TYTO_HOME/trust.json cannot be read or written.",
@@ -21452,10 +21555,15 @@ var effectSchema = external_exports.discriminatedUnion("kind", [
     kind: external_exports.literal("shadow"),
     x: finite,
     y: finite,
+    /**
+     * The Gaussian's standard deviation, which is how CSS `drop-shadow()` reads its length
+     * and what SVG's `stdDeviation` is — every exporter writes it unconverted (ADR 0156).
+     */
     blur: nonNegative,
     spread: finite,
     color: colorSchema
   }),
+  /** `radius` is a standard deviation too, as CSS `blur()` reads it. */
   external_exports.strictObject({ kind: external_exports.literal("blur"), radius: nonNegative }),
   external_exports.strictObject({ kind: external_exports.literal("background-blur"), radius: nonNegative })
 ]);
@@ -21490,6 +21598,7 @@ var TemplateError = class extends Error {
     this.diagnostic = built;
   }
 };
+var ORPHAN_WORD_LIMIT = 80;
 function isTonedMark(mark2) {
   return "layers" in mark2;
 }
@@ -21623,8 +21732,12 @@ function colorValue(context, name, fallback) {
   const value = context.values?.[name];
   return typeof value === "string" ? value : fallback;
 }
+function imageValue(context, name) {
+  const value = context.values?.[name];
+  return typeof value === "object" && "hash" in value ? value : void 0;
+}
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.34.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.36.1/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -21726,7 +21839,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21763,7 +21876,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.5.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.7.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21822,6 +21935,99 @@ function reportOverflow(report, bottom, limit) {
   const overflow = bottom - limit;
   if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
 }
+function spaceByWeight(spacing) {
+  const { top, bottom, heights, weights } = spacing;
+  if (weights.length !== heights.length + 1) {
+    throw new RangeError(
+      `spaceByWeight takes ${String(heights.length + 1)} weights for ${String(heights.length)} blocks, got ${String(weights.length)}`
+    );
+  }
+  const used = heights.reduce((sum, height) => sum + height, 0);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const free = bottom - top - used;
+  const unit = free > 0 && totalWeight > 0 ? free / totalWeight : 0;
+  const tops = [];
+  let cursor = top;
+  heights.forEach((height, index) => {
+    cursor += (weights[index] ?? 0) * unit;
+    tops.push(cursor);
+    cursor += height;
+  });
+  return { tops, unit, overflow: Math.max(0, -free) };
+}
+var ORPHAN_LIMITS = { shrink: 0.08, tracking: 0.01 };
+var SIZE_STEP = 1;
+var TRACKING_STEPS = 4;
+function settle2(request) {
+  const { size, layout, measure } = request;
+  const limits = request.limits ?? ORPHAN_LIMITS;
+  const first = layout({ size, letterSpacing: 0 });
+  const orphanAt = (text2) => {
+    const measured = measure(text2);
+    return measured === void 0 ? void 0 : orphanOf(text2.runs, measured.runs);
+  };
+  const found = orphanAt(first.text);
+  if (found === void 0) return { setting: { size, letterSpacing: 0 }, laid: first.laid };
+  const smallest = Math.ceil(size * (1 - limits.shrink));
+  for (let candidate = size; candidate >= smallest; candidate -= SIZE_STEP) {
+    for (const em of trackings(limits.tracking)) {
+      if (candidate === size && em === 0) continue;
+      const setting = { size: candidate, letterSpacing: round(em * candidate) };
+      const tried = layout(setting);
+      if (tried.fits && orphanAt(tried.text) === void 0) return { setting, laid: tried.laid };
+    }
+  }
+  return { setting: { size, letterSpacing: 0 }, laid: first.laid, orphan: found };
+}
+function trackings(limit) {
+  const steps = [0];
+  if (limit <= 0) return steps;
+  for (let step = 1; step <= TRACKING_STEPS; step += 1) {
+    const em = limit * step / TRACKING_STEPS;
+    steps.push(-em, em);
+  }
+  return steps;
+}
+function round(value) {
+  return Math.round(value * 1e3) / 1e3;
+}
+function orphanOf(written, laid) {
+  const paragraphs = linesOf(written).map((line2) => wordsOf(line2).length);
+  const lines2 = linesOf(laid).map(wordsOf);
+  let line = 0;
+  for (const count of paragraphs) {
+    if (count === 0) {
+      line += 1;
+      continue;
+    }
+    let seen = 0;
+    let taken = 0;
+    let last = [];
+    while (seen < count && line < lines2.length) {
+      last = lines2[line] ?? [];
+      seen += last.length;
+      taken += 1;
+      line += 1;
+    }
+    if (taken > 1 && last.length === 1) return last[0];
+  }
+  return void 0;
+}
+function linesOf(runs) {
+  const lines2 = [""];
+  for (const run2 of runs) {
+    if (run2.kind === "break") lines2.push("");
+    else lines2[lines2.length - 1] += run2.text;
+  }
+  return lines2;
+}
+function wordsOf(line) {
+  return line.split(/\s+/u).filter((word) => word !== "");
+}
+function reportOrphan(report, word) {
+  if (word !== void 0)
+    report({ code: "W_TEMPLATE_ORPHAN", word: [...word].slice(0, ORPHAN_WORD_LIMIT).join("") });
+}
 function lines(text2) {
   const result = [];
   let current = [];
@@ -21849,7 +22055,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -21889,7 +22095,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -21983,7 +22189,16 @@ var NUMBER_DEFAULTS = {
   "statement-ceiling": 48,
   /** The answer's explanation's size range. */
   "explanation-floor": 32,
-  "explanation-ceiling": 76
+  "explanation-ceiling": 76,
+  /**
+   * The smallest a weight-1 gap of a middle slide may be, in px (Tyto ADR 0167): the words are
+   * set at the largest size that leaves every gap at least its weight times this.
+   */
+  "gap-floor": 1,
+  /** How far under its fitted size a text may go to keep a word off a line of its own. */
+  "orphan-shrink": ORPHAN_LIMITS.shrink,
+  /** The most letter spacing, in em, a text may take or give for the same. */
+  "orphan-tracking": ORPHAN_LIMITS.tracking
 };
 var FACE2 = { family: "CircularXX", source: "system" };
 var LIGHT = 300;
@@ -22013,14 +22228,15 @@ var build = (context) => {
   const page = sealed(context.size, sealOf(context));
   const lift = context.size.h - page.size.h;
   if (role === "capa") {
-    const picture = context.slots["fundo"]?.value;
+    const written = context.slots["fundo"]?.value;
+    const picture = written?.kind === "image" ? written.asset : imageValue(context, "cover-background");
     return frame({
       format: context.format,
       size: context.size,
       idPrefix: context.idPrefix,
       background: solid(ink("deep")),
       children: [
-        ...picture?.kind === "image" ? [image({ name: "fundo", asset: picture.asset, size: context.size, fit: "cover" })] : [],
+        ...picture === void 0 ? [] : [image({ name: "fundo", asset: picture, size: context.size, fit: "cover" })],
         at(80, 72, drawLogo(context.brand, 62, oneInk(ink("on-deep")))),
         ...cover(context, ink, last, lift),
         ...page.seal
@@ -22135,17 +22351,13 @@ function examLines(context, color2, lift) {
   reportOverflow(context.report, foot(floor, layout(floor).lines), bottom);
   return draft(floor);
 }
+var FRAME_GAP = 48;
 var STATEMENT = {
   x: 131,
-  labelTop: 197,
   labelSize: 45.83,
-  /** From the label's capitals to the statement's. */
-  labelToBody: 93,
   bodySize: 40,
   bodyLineHeight: 1.5,
   bodyWidth: 810,
-  /** From the statement's last capitals to the first option's. */
-  bodyToOptions: 99,
   /** An option's letter stands on the statement's left edge (the maintainer, 2026-10-30). */
   optionX: 131,
   /** Where an option's words start, after its letter. */
@@ -22154,10 +22366,9 @@ var STATEMENT = {
   optionLineHeight: 1.2,
   optionWidth: 786,
   /** From one option's last line's capitals to the next option's first. */
-  optionPitch: 74.25,
-  /** The lowest an option may end: 40 px over the arrow. */
-  limit: FOOTER_TOP - 40
+  optionPitch: 74.25
 };
+var STATEMENT_GAPS = { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP };
 var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
 function statement(context, ink, lift) {
   const all = slideRichLines(context);
@@ -22165,90 +22376,191 @@ function statement(context, ink, lift) {
   const body = firstOption < 0 ? all : all.slice(0, firstOption);
   const options = firstOption < 0 ? [] : all.slice(firstOption);
   const continued = context.adjustments["continua"] === true;
-  const label = continued ? [] : [
-    textAt("rotulo", STATEMENT_LABEL, {
-      x: STATEMENT.x,
-      capTop: STATEMENT.labelTop,
-      size: STATEMENT.labelSize,
-      weight: BLACK,
-      color: ink("title-ink")
-    })
-  ];
-  const bodyTop = continued ? STATEMENT.labelTop : STATEMENT.labelTop + STATEMENT.labelToBody;
   const picture = pictureOf(context);
-  const layout = (size) => {
+  const stackAt = (tuning) => {
+    const size = tuning.size;
     const scale = size / STATEMENT.bodySize;
     const optionSize = STATEMENT.optionSize * scale;
-    const nodes = [];
-    let foot = bodyTop - FRAME.gap;
-    let optionTop = bodyTop;
+    const pieces = [];
+    const weights = [];
+    const extras = [];
+    let above;
+    let text2;
+    const add = (kind, piece) => {
+      weights.push(statementGap(above, kind));
+      pieces.push(piece);
+      above = kind;
+    };
+    if (!continued) {
+      add(
+        "label",
+        linesPiece(1, STATEMENT.labelSize, 1, (capTop) => [
+          textAt("rotulo", STATEMENT_LABEL, {
+            x: STATEMENT.x,
+            capTop,
+            size: STATEMENT.labelSize,
+            weight: BLACK,
+            color: ink("title-ink")
+          })
+        ])
+      );
+    }
     if (body.length > 0) {
       const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
-      const draft = richAt("enunciado", body, style2, {
+      const draftAt = (capTop) => richAt("enunciado", body, style2, {
         x: STATEMENT.x,
-        capTop: bodyTop,
+        capTop,
         lineHeight: STATEMENT.bodyLineHeight,
-        width: STATEMENT.bodyWidth
+        width: STATEMENT.bodyWidth,
+        letterSpacing: tuning.letterSpacing
       });
-      nodes.push(draft);
-      const count = lineCount(context, draft, body, size, STATEMENT.bodyWidth);
-      const lastTop = bodyTop + (count - 1) * size * STATEMENT.bodyLineHeight;
-      foot = lastTop + size * CAP_HEIGHT;
-      optionTop = lastTop + STATEMENT.bodyToOptions * scale;
+      text2 = draftAt(0);
+      const count = lineCount(context, text2, body, size, STATEMENT.bodyWidth);
+      add(
+        "body",
+        linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)])
+      );
     }
-    if (picture !== void 0) {
-      const framed = framedImage(picture, { x: FRAME_X, y: foot + FRAME.gap }, ink);
-      nodes.push(...framed.nodes);
-      foot = framed.foot;
-      optionTop = foot + FRAME.gap;
-    }
-    const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
-    const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
-    for (const [index, line] of options.entries()) {
-      const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
-      const words = textAt(`alternativa-${index + 1}`, rest, {
+    if (picture !== void 0) add("picture", picturePiece(picture, FRAME_X, ink));
+    if (options.length > 0) {
+      const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
+      const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+      const written = options.map((line) => {
+        const [, letter = "", rest = ""] = OPTION.exec(plain(line)) ?? [];
+        return { letter, rest };
+      });
+      const wordsAt = (index, capTop) => textAt(`alternativa-${index + 1}`, written[index]?.rest ?? "", {
         x: textX,
-        capTop: optionTop,
+        capTop,
         size: optionSize,
         weight: LIGHT,
         color: ink("body-ink"),
         lineHeight: STATEMENT.optionLineHeight,
-        width
+        width,
+        letterSpacing: tuning.extras[index] ?? 0
       });
-      nodes.push(
-        textAt(`letra-${index + 1}`, letter, {
-          x: STATEMENT.optionX,
-          capTop: optionTop,
-          size: optionSize,
-          weight: MEDIUM,
-          color: ink("title-ink"),
-          lineHeight: STATEMENT.optionLineHeight
-        }),
-        words
-      );
-      const count = lineCount(context, words, [rest], optionSize, width);
-      const lastTop = optionTop + (count - 1) * optionSize * STATEMENT.optionLineHeight;
-      foot = lastTop + optionSize * CAP_HEIGHT;
-      optionTop = lastTop + STATEMENT.optionPitch * scale;
+      const counts = written.map((option, index) => {
+        const words = wordsAt(index, 0);
+        extras.push({ text: words, size: optionSize });
+        return lineCount(context, words, [option.rest], optionSize, width);
+      });
+      const leading = optionSize * STATEMENT.optionLineHeight;
+      const topsFrom = (first) => {
+        const tops = [];
+        let top = first;
+        for (const count of counts) {
+          tops.push(top);
+          top += (count - 1) * leading + STATEMENT.optionPitch * scale;
+        }
+        return tops;
+      };
+      const lastTop = topsFrom(0).at(-1) ?? 0;
+      const lastCount = counts.at(-1) ?? 1;
+      add("options", {
+        height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
+        place: (first) => topsFrom(first).flatMap((capTop, index) => [
+          textAt(`letra-${index + 1}`, written[index]?.letter ?? "", {
+            x: STATEMENT.optionX,
+            capTop,
+            size: optionSize,
+            weight: MEDIUM,
+            color: ink("title-ink"),
+            lineHeight: STATEMENT.optionLineHeight
+          }),
+          wordsAt(index, capTop)
+        ])
+      });
     }
-    return { nodes, foot };
+    weights.push(STATEMENT_GAPS.edge);
+    return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
-  const laid = largestThatFits(context, "statement", layout, STATEMENT.limit - lift);
-  return [...label, ...laid.nodes];
+  return fitStack(context, "statement", stackAt, FOOTER_TOP - lift);
 }
-function largestThatFits(context, name, layout, limit) {
+function statementGap(above, kind) {
+  if (above === void 0) return STATEMENT_GAPS.edge;
+  if (above === "picture" || kind === "picture") return STATEMENT_GAPS.picture;
+  if (above === "label" && kind === "body") return STATEMENT_GAPS.labelToBody;
+  return STATEMENT_GAPS.bodyToOptions;
+}
+var ROOM_TOP = 48 + 79;
+function fitStack(context, name, stackAt, bottom) {
   const floor = numberValue(context, `${name}-floor`, NUMBER_DEFAULTS[`${name}-floor`]);
   const ceiling = Math.max(
     floor,
     numberValue(context, `${name}-ceiling`, NUMBER_DEFAULTS[`${name}-ceiling`])
   );
-  for (let size = Math.floor(ceiling); size >= floor; size -= 1) {
-    const laid2 = layout(size);
-    if (laid2.foot <= limit) return laid2;
+  const gapFloor = numberValue(context, "gap-floor", NUMBER_DEFAULTS["gap-floor"]);
+  const limits = {
+    shrink: numberValue(context, "orphan-shrink", NUMBER_DEFAULTS["orphan-shrink"]),
+    tracking: numberValue(context, "orphan-tracking", NUMBER_DEFAULTS["orphan-tracking"])
+  };
+  const arrange = (tuning2) => {
+    const stacked = stackAt(tuning2);
+    const heights = stacked.pieces.map((piece) => piece.height);
+    const spaced = spaceByWeight({ top: ROOM_TOP, bottom, heights, weights: stacked.weights });
+    return { stacked, spaced, fits: spaced.unit >= gapFloor };
+  };
+  const plainAt = (size) => ({ size, letterSpacing: 0, extras: [] });
+  let fitted;
+  for (let size = Math.floor(ceiling); size >= floor && fitted === void 0; size -= 1) {
+    if (arrange(plainAt(size)).fits) fitted = size;
   }
-  const laid = layout(floor);
-  reportOverflow(context.report, laid.foot, limit);
-  return laid;
+  if (fitted === void 0) {
+    const arranged2 = arrange(plainAt(floor));
+    const weight = arranged2.stacked.weights.reduce((sum, each) => sum + each, 0);
+    context.report({
+      code: "W_TEMPLATE_OVERFLOW",
+      overflow: (gapFloor - arranged2.spaced.unit) * weight
+    });
+    return drawn(arranged2.stacked, arranged2.spaced.tops);
+  }
+  let tuning = plainAt(fitted);
+  const orphans = [];
+  const main = arrange(tuning).stacked.text;
+  if (main !== void 0) {
+    const settled = settle2({
+      size: fitted,
+      measure: context.measure,
+      limits,
+      layout: (setting) => {
+        const tried = { ...setting, extras: [] };
+        const arranged2 = arrange(tried);
+        return { text: arranged2.stacked.text ?? main, fits: arranged2.fits, laid: tried };
+      }
+    });
+    tuning = settled.laid;
+    if (settled.orphan !== void 0) orphans.push(settled.orphan);
+  }
+  for (const [index, extra] of arrange(tuning).stacked.extras.entries()) {
+    const settled = settle2({
+      size: extra.size,
+      measure: context.measure,
+      limits: { shrink: 0, tracking: limits.tracking },
+      layout: (setting) => {
+        const spacing = [...tuning.extras];
+        spacing[index] = setting.letterSpacing;
+        const tried = { ...tuning, extras: spacing };
+        const arranged2 = arrange(tried);
+        const read = arranged2.stacked.extras[index]?.text ?? extra.text;
+        return { text: read, fits: arranged2.fits, laid: tried };
+      }
+    });
+    tuning = settled.laid;
+    if (settled.orphan !== void 0) orphans.push(settled.orphan);
+  }
+  for (const word of orphans) reportOrphan(context.report, word);
+  const arranged = arrange(tuning);
+  return drawn(arranged.stacked, arranged.spaced.tops);
+}
+function drawn(stacked, tops) {
+  return stacked.pieces.flatMap((piece, index) => piece.place(tops[index] ?? ROOM_TOP));
+}
+function linesPiece(count, size, lineHeight, place) {
+  return { height: (count - 1) * size * lineHeight + size * CAP_HEIGHT, place };
+}
+function picturePiece(picture, x, ink) {
+  const height = framedImage(picture, { x, y: 0 }, ink).foot;
+  return { height, place: (y) => framedImage(picture, { x, y }, ink).nodes };
 }
 var FRAME = {
   w: 835,
@@ -22257,8 +22569,7 @@ var FRAME = {
   /** The bar down the left side, border included. */
   side: 29,
   /** The radius of the white area's two left corners, where it meets the bar. */
-  radius: 32,
-  gap: 48
+  radius: 32
 };
 var FRAME_X = 123;
 var FRAME_SHAPES = { widest: 3, tallest: 1 };
@@ -22337,65 +22648,69 @@ var SHADOW = {
 };
 var ANSWER = {
   x: 80,
-  labelTop: 229,
   labelSize: 45.06,
-  answerTop: 288,
+  /** From the label's capitals to the answer's. */
+  labelToAnswer: 59,
   answerSize: 103,
-  bodyTop: 526,
   bodySize: 68.09,
   bodyLineHeight: 1.5,
-  bodyWidth: 840,
-  limit: FOOTER_TOP - 40
+  bodyWidth: 840
 };
+var ANSWER_GAPS = { edge: 102, headToBody: 165, picture: FRAME_GAP };
 function answer(context, ink, lift) {
   const continued = context.adjustments["continua"] === true;
   const written = slideRichLines(context);
   const first = continued ? void 0 : written[0];
   const rest = continued ? written : written.slice(1);
-  const bodyTop = continued ? ANSWER.labelTop : ANSWER.bodyTop;
   const picture = pictureOf(context);
-  const layout = (size) => {
-    const nodes = [];
-    let foot = bodyTop - FRAME.gap;
-    if (rest.length > 0) {
-      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
-      const body = richAt("explicacao", rest, style2, {
-        x: ANSWER.x,
-        capTop: bodyTop,
-        lineHeight: ANSWER.bodyLineHeight,
-        width: ANSWER.bodyWidth
+  const stackAt = (tuning) => {
+    const pieces = [];
+    const weights = [ANSWER_GAPS.edge];
+    let text2;
+    if (!continued) {
+      pieces.push({
+        height: ANSWER.labelToAnswer + ANSWER.answerSize * CAP_HEIGHT,
+        place: (capTop) => [
+          textAt("rotulo", ANSWER_LABEL, {
+            x: ANSWER.x,
+            capTop,
+            size: ANSWER.labelSize,
+            weight: BLACK,
+            color: ink("title-ink")
+          }),
+          textAt("resposta", first === void 0 ? "" : plain(first).trim(), {
+            x: ANSWER.x,
+            capTop: capTop + ANSWER.labelToAnswer,
+            size: ANSWER.answerSize,
+            weight: BLACK,
+            color: ink("title-ink")
+          })
+        ]
       });
-      nodes.push(body);
-      const count = lineCount(context, body, rest, size, ANSWER.bodyWidth);
-      const lastTop = bodyTop + (count - 1) * size * ANSWER.bodyLineHeight;
-      foot = lastTop + size * CAP_HEIGHT;
+    }
+    if (rest.length > 0) {
+      const size = tuning.size;
+      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+      const draftAt = (capTop) => richAt("explicacao", rest, style2, {
+        x: ANSWER.x,
+        capTop,
+        lineHeight: ANSWER.bodyLineHeight,
+        width: ANSWER.bodyWidth,
+        letterSpacing: tuning.letterSpacing
+      });
+      text2 = draftAt(0);
+      const count = lineCount(context, text2, rest, size, ANSWER.bodyWidth);
+      if (pieces.length > 0) weights.push(ANSWER_GAPS.headToBody);
+      pieces.push(linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)]));
     }
     if (picture !== void 0) {
-      const framed = framedImage(picture, { x: ANSWER.x, y: foot + FRAME.gap }, ink);
-      nodes.push(...framed.nodes);
-      foot = framed.foot;
+      if (pieces.length > 0) weights.push(ANSWER_GAPS.picture);
+      pieces.push(picturePiece(picture, ANSWER.x, ink));
     }
-    return { nodes, foot };
+    weights.push(ANSWER_GAPS.edge);
+    return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras: [] };
   };
-  const laid = largestThatFits(context, "explanation", layout, ANSWER.limit - lift);
-  if (continued) return laid.nodes;
-  return [
-    textAt("rotulo", ANSWER_LABEL, {
-      x: ANSWER.x,
-      capTop: ANSWER.labelTop,
-      size: ANSWER.labelSize,
-      weight: BLACK,
-      color: ink("title-ink")
-    }),
-    textAt("resposta", first === void 0 ? "" : plain(first).trim(), {
-      x: ANSWER.x,
-      capTop: ANSWER.answerTop,
-      size: ANSWER.answerSize,
-      weight: BLACK,
-      color: ink("title-ink")
-    }),
-    ...laid.nodes
-  ];
+  return fitStack(context, "explanation", stackAt, FOOTER_TOP - lift);
 }
 var SIGN_OFF = {
   titleTop: 375,

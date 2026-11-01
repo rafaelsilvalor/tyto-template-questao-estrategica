@@ -22,7 +22,7 @@ templates:
   questao-estrategica:
     source:
       git: https://github.com/rafaelsilvalor/tyto-template-questao-estrategica.git
-      ref: v0.3.0
+      ref: v0.4.0
 ```
 
 Tyto fetches the tag the next time it loads templates, or now with `tyto plugin sync`, and asks
@@ -107,7 +107,7 @@ which Tyto has no face for: it is Black (900), the maintainer's call.
 
 ## What a configuration may change
 
-`templates/questao-estrategica/manifest.yaml` declares fifteen `values` (Tyto ADR 0153): nine
+`templates/questao-estrategica/manifest.yaml` declares eighteen `values` (Tyto ADR 0153): nine
 colours — the cover's `deep`, `accent` and `on-deep`, the `paper`, the `title-ink`, `body-ink`
 and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and six lengths, three pairs of
 floor and ceiling between which the words are sized to their room: `exam-floor`/`exam-ceiling`
@@ -117,6 +117,17 @@ the answer's explanation. Each is the largest size whose words (and picture) end
 so short words grow and long ones shrink. Each colour is the reference art's, the accent included
 (the reference's `#1d9ad5`, not the brand kit's). A configuration changes a value, never which
 pieces are drawn (Tyto ADR 0151).
+
+The statement and the answer stack their blocks between the logo and the footer with the
+reference's gaps, in proportion (Tyto ADR 0167, `spaceByWeight`): 70, 60 and 71 px on the
+statement (logo to label, label to statement, statement to options), 102 and 165 on the answer
+(logo to label, answer to explanation), and under the last block the same gap as over the first,
+so the middle is centred. The words are set at the largest size that keeps every gap at least
+`gap-floor` (1) times the reference's; a short text leaves them wider, all in proportion. A
+paragraph that would end on a line of one word is set again (`settle`): letter spacing within
+`orphan-tracking` (0.01 em), then a size up to `orphan-shrink` (8%) smaller; an option, whose size
+is the statement's, moves its letter spacing only. Past those limits the slide is drawn and
+`W_TEMPLATE_ORPHAN` names the word.
 
 ## Development
 
@@ -142,6 +153,10 @@ The tests, all without Tyto:
   between 3:1 and square, `{proporcao}` used only when the file has no size, the
   continued slides without a label, the cover's exam lines sized between floor and ceiling,
   the overflow warning, the seal on the last slide and the number lifted by it.
+- `src/rhythm.test.ts`: the middle slides' gaps in the reference's proportions and centred, a
+  continued explanation centred, and the orphan control — the screenshot's explanation cleared
+  by the default limits and named by `W_TEMPLATE_ORPHAN` without them, an option the same by
+  letter spacing — measured against a half-em face standing in for CircularXX.
 - `tests/examples.test.ts`: the example brief compiled as Tyto compiles it, through
   `@tyto/template-kit/testing` (Tyto ADR 0152), against the HTML of each slide in
   `tests/__snapshots__/`. Nothing is measured and faces are placeholders, so the snapshots move

@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.3.0
+version: 0.4.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -87,3 +87,11 @@ values:
   statement-ceiling: { type: length, default: 48, min: 28, max: 72 }
   explanation-floor: { type: length, default: 32, min: 24, max: 76 }
   explanation-ceiling: { type: length, default: 76, min: 40, max: 112 }
+  # The middle slides stack their blocks between the logo and the footer with the reference's
+  # gaps, in proportion (Tyto ADR 0167): the words are set at the largest size that keeps every
+  # gap at least this fraction of the reference's, and a short text leaves them wider.
+  gap-floor: { type: number, default: 1, min: 0.25, max: 3 }
+  # A paragraph that would end on a line of one word is set again with letter spacing, in em,
+  # and then a smaller size, within these; past them it is drawn and W_TEMPLATE_ORPHAN says so.
+  orphan-shrink: { type: number, default: 0.08, min: 0, max: 0.25 }
+  orphan-tracking: { type: number, default: 0.01, min: 0, max: 0.05 }

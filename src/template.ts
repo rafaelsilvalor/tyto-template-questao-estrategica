@@ -21,6 +21,7 @@
 
 import {
   colorValue,
+  imageValue,
   numberValue,
   frame,
   image,
@@ -162,16 +163,20 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   const lift = context.size.h - page.size.h;
 
   if (role === 'capa') {
-    const picture = context.slots['fundo']?.value;
+    // The brief's `fundo` wins; else the configuration's `cover-background` (TYTO-518), so a
+    // configuration sets one picture for every cover; else the flat colour.
+    const written = context.slots['fundo']?.value;
+    const picture =
+      written?.kind === 'image' ? written.asset : imageValue(context, 'cover-background');
     return frame({
       format: context.format,
       size: context.size,
       idPrefix: context.idPrefix,
       background: solid(ink('deep')),
       children: [
-        ...(picture?.kind === 'image'
-          ? [image({ name: 'fundo', asset: picture.asset, size: context.size, fit: 'cover' })]
-          : []),
+        ...(picture === undefined
+          ? []
+          : [image({ name: 'fundo', asset: picture, size: context.size, fit: 'cover' })]),
         at(80, 72, drawLogo(context.brand, 62, oneInk(ink('on-deep')))),
         ...cover(context, ink, last, lift),
         ...page.seal,

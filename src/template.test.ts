@@ -45,7 +45,10 @@ const anyImage: AssetResolver = {
   },
 };
 
-async function compiled(brief: string, options: Pick<CompileTemplateOptions, 'assets'> = {}) {
+async function compiled(
+  brief: string,
+  options: Pick<CompileTemplateOptions, 'assets' | 'values'> = {},
+) {
   const result = await compileTemplate({
     brief: brief.startsWith('---')
       ? brief
@@ -167,6 +170,33 @@ describe('questao-estrategica', () => {
     expect(short).toBe(NUMBER_DEFAULTS['exam-ceiling']);
     expect(long).toBeLessThan(short);
     expect(long).toBeGreaterThanOrEqual(NUMBER_DEFAULTS['exam-floor']);
+  });
+
+  it('draws the configuration’s cover-background under the cover, the brief’s fundo over it', async () => {
+    const configured = {
+      id: 'configured',
+      source: 'file' as const,
+      path: 'configured.png',
+      hash: 'configured',
+    };
+    const values = { 'cover-background': { value: configured } };
+    const cover = async (
+      brief: string,
+      options: Pick<CompileTemplateOptions, 'assets' | 'values'>,
+    ) => {
+      const result = await compiled(brief, options);
+      const slide = result.value.scene.artworks[0]?.frames[0];
+      if (slide === undefined) throw new Error('no cover');
+      return named(slide, 'fundo').map((node) =>
+        node.kind === 'image' ? node.asset.hash : node.kind,
+      );
+    };
+    const plain = '::lamina {capa}\n  QUINTEX – 2026\n';
+    const written = `---\ntemplate: questao-estrategica\nformats: [grid]\nfundo: ./escrito.png\n---\n${plain}`;
+
+    expect(await cover(plain, { values })).toEqual(['configured']);
+    expect(await cover(written, { values, assets: anyImage })).toEqual(['./escrito.png']);
+    expect(await cover(plain, {})).toEqual([]);
   });
 
   it('replaces the cover’s title with the brief’s titulo', async () => {

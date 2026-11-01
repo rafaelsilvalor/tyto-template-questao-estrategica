@@ -59,8 +59,11 @@ adjustments:
 # art's, and `tests/values.test.ts` pins them equal to the ones the code falls back to. The
 # accent is the reference's, not the brand kit's: the kit's marinho accent is another blue.
 values:
-  # The cover's colour where the brief gives it no picture.
+  # The cover's colour where neither the brief nor the configuration gives it a picture.
   deep: { type: color, default: '#00153d' }
+  # The cover's picture for every brief of a configuration (TYTO-518), full bleed under the
+  # words; a brief's own `fundo` wins over it. No default: without both, the cover is `deep`.
+  cover-background: { type: image }
   # The cover's title, its rule and its slide number.
   accent: { type: color, default: '#1d9ad5' }
   # The cover's other words, its arrow and its logo.

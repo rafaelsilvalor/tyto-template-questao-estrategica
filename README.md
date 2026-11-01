@@ -107,7 +107,7 @@ which Tyto has no face for: it is Black (900), the maintainer's call.
 
 ## What a configuration may change
 
-`templates/questao-estrategica/manifest.yaml` declares eighteen `values` (Tyto ADR 0153): nine
+`templates/questao-estrategica/manifest.yaml` declares nineteen `values` (Tyto ADR 0153): nine
 colours — the cover's `deep`, `accent` and `on-deep`, the `paper`, the `title-ink`, `body-ink`
 and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and six lengths, three pairs of
 floor and ceiling between which the words are sized to their room: `exam-floor`/`exam-ceiling`
@@ -117,6 +117,11 @@ the answer's explanation. Each is the largest size whose words (and picture) end
 so short words grow and long ones shrink. Each colour is the reference art's, the accent included
 (the reference's `#1d9ad5`, not the brand kit's). A configuration changes a value, never which
 pieces are drawn (Tyto ADR 0151).
+
+`cover-background`, an image with no default, is the cover's picture for every brief of a
+configuration (TYTO-518): a brand's configuration names its file once instead of each brief
+writing `fundo`. A brief's own `fundo` still wins over it, and without either the cover is the
+flat `deep` colour.
 
 The statement and the answer stack their blocks between the logo and the footer with the
 reference's gaps, in proportion (Tyto ADR 0167, `spaceByWeight`): 70, 60 and 71 px on the

@@ -148621,6 +148621,10 @@ function colorValue(context, name, fallback) {
   const value = context.values?.[name];
   return typeof value === "string" ? value : fallback;
 }
+function imageValue(context, name) {
+  const value = context.values?.[name];
+  return typeof value === "object" && "hash" in value ? value : void 0;
+}
 
 // node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.36.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
@@ -165243,14 +165247,15 @@ var build = (context) => {
   const page = sealed(context.size, sealOf(context));
   const lift = context.size.h - page.size.h;
   if (role === "capa") {
-    const picture = context.slots["fundo"]?.value;
+    const written = context.slots["fundo"]?.value;
+    const picture = written?.kind === "image" ? written.asset : imageValue(context, "cover-background");
     return frame({
       format: context.format,
       size: context.size,
       idPrefix: context.idPrefix,
       background: solid(ink("deep")),
       children: [
-        ...picture?.kind === "image" ? [image({ name: "fundo", asset: picture.asset, size: context.size, fit: "cover" })] : [],
+        ...picture === void 0 ? [] : [image({ name: "fundo", asset: picture, size: context.size, fit: "cover" })],
         at(80, 72, drawLogo(context.brand, 62, oneInk(ink("on-deep")))),
         ...cover(context, ink, last, lift),
         ...page.seal

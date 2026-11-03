@@ -47,7 +47,14 @@ import {
   spaceByWeight,
 } from '@tyto/template-kit';
 
-import type { AssetRef, RichText, TemplateBuild, TemplateContext, TextRun } from '@tyto/core';
+import type {
+  AssetRef,
+  RichText,
+  SlotValue,
+  TemplateBuild,
+  TemplateContext,
+  TextRun,
+} from '@tyto/core';
 import type { NodeDraft, TextDraft } from '@tyto/core/template';
 
 /* -------------------------------------------------------------------------- the words -- */
@@ -391,15 +398,11 @@ export function optionsOf(lines: readonly string[]): Option[] {
 type StatementBlock = 'label' | 'body' | 'picture' | 'options';
 
 function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
-  const all = slideRichLines(context);
-  const firstOption = all.findIndex((line) => OPTION.test(plain(line)));
-  const body = firstOption < 0 ? all : all.slice(0, firstOption);
-  const options = optionsOf((firstOption < 0 ? [] : all.slice(firstOption)).map(plain));
+  const segments = statementSegments(slideParts(context));
   // A statement that goes on from the slide before (`{continua}`) draws no label.
   const continued = context.adjustments['continua'] === true;
-  const picture = pictureOf(context);
 
-  /** The slide's blocks at one tuning: label, statement, image, options, those it has. */
+  /** The slide's blocks at one tuning: the label, then what the slide wrote, in its order. */
   const stackAt = (tuning: Tuning): Stacked => {
     const size = tuning.size;
     // The options, their letters and their pitch are the reference's, in proportion to its 40 px.
@@ -410,6 +413,8 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
     const extras: Extra[] = [];
     let above: StatementBlock | undefined;
     let text: TextDraft | undefined;
+    let bodies = 0;
+    let optionCount = 0;
     const add = (kind: StatementBlock, piece: Piece): void => {
       weights.push(statementGap(above, kind));
       pieces.push(piece);
@@ -430,84 +435,149 @@ function statement(context: TemplateContext, ink: Ink, lift: number): NodeDraft[
         ]),
       );
     }
-    if (body.length > 0) {
-      const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
-      const draftAt = (capTop: number): TextDraft =>
-        redrawn(
-          richAt('enunciado', body, style, {
-            x: STATEMENT.x,
-            capTop,
-            lineHeight: STATEMENT.bodyLineHeight,
-            width: STATEMENT.bodyWidth,
-            letterSpacing: tuning.letterSpacing,
-          }),
-          tuning.runs,
-        );
-      text = draftAt(0);
-      const count = lineCount(context, text, body, size, STATEMENT.bodyWidth);
-      add(
-        'body',
-        linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)]),
-      );
-    }
-    if (picture !== undefined) add('picture', picturePiece(picture, FRAME_X, ink));
-    if (options.length > 0) {
-      const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
-      const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
-      const written = options;
-      const wordsAt = (index: number, capTop: number): TextDraft =>
-        redrawn(
-          textAt(`alternativa-${index + 1}`, written[index]?.words ?? '', {
-            x: textX,
-            capTop,
-            size: optionSize,
-            weight: LIGHT,
-            color: ink('body-ink'),
-            lineHeight: STATEMENT.optionLineHeight,
-            width,
-            letterSpacing: tuning.extras[index] ?? 0,
-          }),
-          tuning.extraRuns?.[index],
-        );
-      const counts = written.map((option, index) => {
-        const words = wordsAt(index, 0);
-        extras.push({ text: words, size: optionSize });
-        return lineCount(context, words, option.words.split('\n'), optionSize, width);
-      });
-      const leading = optionSize * STATEMENT.optionLineHeight;
-      /** Each option's capitals' top, from the first's. */
-      const topsFrom = (first: number): number[] => {
-        const tops: number[] = [];
-        let top = first;
-        for (const count of counts) {
-          tops.push(top);
-          top += (count - 1) * leading + STATEMENT.optionPitch * scale;
-        }
-        return tops;
-      };
-      const lastTop = topsFrom(0).at(-1) ?? 0;
-      const lastCount = counts.at(-1) ?? 1;
-      add('options', {
-        height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
-        place: (first) =>
-          topsFrom(first).flatMap((capTop, index) => [
-            textAt(`letra-${index + 1}`, written[index]?.letter ?? '', {
-              x: STATEMENT.optionX,
+    for (const segment of segments) {
+      if (segment.kind === 'picture') {
+        add('picture', picturePiece(segment.picture, FRAME_X, ink));
+      } else if (segment.kind === 'body') {
+        // The first run of statement is the text the slide is fitted by; a run after a picture
+        // follows its size and is read for an orphan by a break or letter spacing, as an option.
+        bodies += 1;
+        // The number now: the draft is drawn again later, when `bodies` has counted on.
+        const number = bodies;
+        const main = number === 1;
+        const extra = extras.length;
+        const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
+        const draftAt = (capTop: number): TextDraft =>
+          redrawn(
+            richAt(main ? 'enunciado' : `enunciado-${number}`, segment.lines, style, {
+              x: STATEMENT.x,
               capTop,
-              size: optionSize,
-              weight: MEDIUM,
-              color: ink('title-ink'),
-              lineHeight: STATEMENT.optionLineHeight,
+              lineHeight: STATEMENT.bodyLineHeight,
+              width: STATEMENT.bodyWidth,
+              letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
             }),
-            wordsAt(index, capTop),
-          ]),
-      });
+            main ? tuning.runs : tuning.extraRuns?.[extra],
+          );
+        const draft = draftAt(0);
+        if (main) text = draft;
+        else extras.push({ text: draft, size });
+        const count = lineCount(context, draft, segment.lines, size, STATEMENT.bodyWidth);
+        add(
+          'body',
+          linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)]),
+        );
+      } else {
+        const first = optionCount;
+        optionCount += segment.options.length;
+        add(
+          'options',
+          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink),
+        );
+      }
     }
     weights.push(STATEMENT_GAPS.edge);
     return { pieces, weights, ...(text === undefined ? {} : { text }), extras };
   };
 
   return fitStack(context, 'statement', stackAt, FOOTER_TOP - lift);
+}
+
+/**
+ * A run of options as one block, numbered on from `first` (`alternativa-3` after two), each read
+ * for an orphan as one of the slide's extras, which it is appended to.
+ */
+function optionsPiece(
+  context: TemplateContext,
+  options: readonly Option[],
+  first: number,
+  optionSize: number,
+  tuning: Tuning,
+  extras: Extra[],
+  ink: Ink,
+): Piece {
+  const scale = optionSize / STATEMENT.optionSize;
+  const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
+  const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+  const offset = extras.length;
+  const wordsAt = (index: number, capTop: number): TextDraft =>
+    redrawn(
+      textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? '', {
+        x: textX,
+        capTop,
+        size: optionSize,
+        weight: LIGHT,
+        color: ink('body-ink'),
+        lineHeight: STATEMENT.optionLineHeight,
+        width,
+        letterSpacing: tuning.extras[offset + index] ?? 0,
+      }),
+      tuning.extraRuns?.[offset + index],
+    );
+  const counts = options.map((option, index) => {
+    const words = wordsAt(index, 0);
+    extras.push({ text: words, size: optionSize });
+    return lineCount(context, words, option.words.split('\n'), optionSize, width);
+  });
+  const leading = optionSize * STATEMENT.optionLineHeight;
+  /** Each option's capitals' top, from the first's. */
+  const topsFrom = (top: number): number[] => {
+    const tops: number[] = [];
+    let at = top;
+    for (const count of counts) {
+      tops.push(at);
+      at += (count - 1) * leading + STATEMENT.optionPitch * scale;
+    }
+    return tops;
+  };
+  const lastTop = topsFrom(0).at(-1) ?? 0;
+  const lastCount = counts.at(-1) ?? 1;
+  return {
+    height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
+    place: (top) =>
+      topsFrom(top).flatMap((capTop, index) => [
+        textAt(`letra-${first + index + 1}`, options[index]?.letter ?? '', {
+          x: STATEMENT.optionX,
+          capTop,
+          size: optionSize,
+          weight: MEDIUM,
+          color: ink('title-ink'),
+          lineHeight: STATEMENT.optionLineHeight,
+        }),
+        wordsAt(index, capTop),
+      ]),
+  };
+}
+
+/** A statement slide's body as its blocks: statement, options and pictures, in written order. */
+type Segment =
+  | { readonly kind: 'body'; readonly lines: readonly RichText[] }
+  | { readonly kind: 'options'; readonly options: readonly Option[] }
+  | { readonly kind: 'picture'; readonly picture: Picture };
+
+/**
+ * The lines up to the slide's first `X)` are statement and every line from it on is options,
+ * as before pictures could stand among them; a picture splits whichever run it is written in.
+ */
+function statementSegments(parts: readonly Part[]): Segment[] {
+  const segments: Segment[] = [];
+  let optionsBegun = false;
+  for (const part of parts) {
+    if (part.kind === 'picture') {
+      segments.push(part);
+      continue;
+    }
+    const firstOption = optionsBegun ? 0 : part.lines.findIndex((line) => OPTION.test(plain(line)));
+    const body = firstOption < 0 ? part.lines : part.lines.slice(0, firstOption);
+    if (body.length > 0) segments.push({ kind: 'body', lines: body });
+    if (firstOption >= 0) {
+      optionsBegun = true;
+      segments.push({
+        kind: 'options',
+        options: optionsOf(part.lines.slice(firstOption).map(plain)),
+      });
+    }
+  }
+  return segments;
 }
 
 /** The weight of the gap over a statement slide's block, from what stands above it. */
@@ -715,21 +785,51 @@ interface Picture {
   readonly written: number;
 }
 
+/** A middle slide's body as written: runs of lines and the pictures among them. */
+type Part =
+  | { readonly kind: 'lines'; readonly lines: readonly RichText[] }
+  | { readonly kind: 'picture'; readonly picture: Picture };
+
 /**
- * The image a middle slide shows: `{imagem: 1}` picks the brief's `imagem-1`, and
- * `{proporcao: …}`, if written, is its shape for when the host could not measure it. Nothing
- * when the slide names no image or the brief left that slot out.
+ * The slide's lines and pictures in the order the brief wrote them (Tyto ADR 0160, amended
+ * 2026-10-31): each `::imagem` after a `::lamina` adds a picture where it stands, and the lines
+ * under it go on with the slide. `{proporcao: …}`, if written, is the shape of every picture on
+ * the slide the host could not measure. Empty lines are dropped, and two runs of lines with no
+ * picture between them (one refused) are one.
  */
-function pictureOf(context: TemplateContext): Picture | undefined {
-  const which = context.adjustments['imagem'];
-  if (typeof which !== 'string') return undefined;
-  const value = context.slots[`imagem-${which}`]?.value;
-  if (value?.kind !== 'image') return undefined;
-  const written = context.adjustments['proporcao'];
-  const proportion = (
-    typeof written === 'string' && written in PROPORTIONS ? written : DEFAULT_PROPORTION
-  ) as keyof typeof PROPORTIONS;
-  return { asset: value.asset, written: PROPORTIONS[proportion] };
+function slideParts(context: TemplateContext): Part[] {
+  const slide = context.slots['lamina'];
+  const shape = context.adjustments['proporcao'];
+  const written =
+    PROPORTIONS[
+      (typeof shape === 'string' && shape in PROPORTIONS
+        ? shape
+        : DEFAULT_PROPORTION) as keyof typeof PROPORTIONS
+    ];
+  const parts: Part[] = [];
+  const addLines = (text: RichText): void => {
+    const kept = lines(text).filter((line) => plain(line).trim() !== '');
+    if (kept.length === 0) return;
+    const last = parts.at(-1);
+    if (last?.kind === 'lines')
+      parts[parts.length - 1] = { kind: 'lines', lines: [...last.lines, ...kept] };
+    else parts.push({ kind: 'lines', lines: kept });
+  };
+  const addPicture = (value: SlotValue | undefined): void => {
+    if (value?.kind === 'image')
+      parts.push({ kind: 'picture', picture: { asset: value.asset, written } });
+  };
+  // A host that hands no order has the slide's opening text and its first picture, after it.
+  if (slide?.blocks === undefined) {
+    if (slide?.value.kind === 'rich-text') addLines(slide.value.text);
+    addPicture(context.slots['imagem']?.value);
+    return parts;
+  }
+  for (const block of slide.blocks) {
+    if (block.kind === 'text') addLines(block.text);
+    else addPicture(block.slot.value);
+  }
+  return parts;
 }
 
 /**
@@ -767,20 +867,11 @@ function framedImage(
     });
   return {
     nodes: [
-      // The reference's shadow is narrower than the frame. A spread draws that since Tyto 0.12,
-      // but its HTML filter blurs half as wide as `drop-shadow()` (Tyto TYTO-500) and tints the
-      // frame (TYTO-501): until both land, a smaller shape hidden behind the frame casts it.
-      rect({
-        name: 'sombra',
-        size: { w: FRAME.w - 2 * SHADOW_INSET, h: height - 2 * SHADOW_INSET },
-        fill: solid(ink('title-ink')),
-        effects: [SHADOW],
-        transform: { x: at.x + SHADOW_INSET, y: at.y + SHADOW_INSET },
-      }),
       rect({
         name: 'moldura',
         size: { w: FRAME.w, h: height },
         fill: solid(ink('title-ink')),
+        effects: [SHADOW],
         transform: { x: at.x, y: at.y },
       }),
       rect({ name: 'fundo-imagem', size, fill: solid(ink('paper')), transform: inside }),
@@ -795,15 +886,16 @@ function framedImage(
 /**
  * The frame's shadow, measured on the reference: under the frame it holds 16 % dark for 10 px
  * and is gone 50 px down; beside it, it fades out within 18 px; it starts about 40 px in from
- * the left and casts nothing above. Cast by a shape `SHADOW_INSET` smaller on every side.
+ * the left and casts nothing above. The frame casts it, `spread` 20 px narrower on every side:
+ * since Tyto 0.36 a blur is a standard deviation in every exporter (TYTO-500) and a filter
+ * keeps the frame's colour (TYTO-501), so no hidden shape stands in for it any more.
  */
-const SHADOW_INSET = 20;
 const SHADOW = {
   kind: 'shadow',
   x: 17,
   y: 47,
   blur: 12,
-  spread: 0,
+  spread: -20,
   color: { r: 0, g: 0, b: 0, a: 0.16 },
 } as const;
 
@@ -828,22 +920,47 @@ const ANSWER = {
  */
 const ANSWER_GAPS = { edge: 102, headToBody: 165, picture: FRAME_GAP };
 
+type AnswerBlock = 'head' | 'body' | 'picture';
+
+/** The weight of the gap over an answer slide's block: a picture keeps its frame's gap. */
+function answerGap(above: AnswerBlock | undefined, kind: AnswerBlock): number {
+  if (above === undefined) return ANSWER_GAPS.edge;
+  if (above === 'picture' || kind === 'picture') return ANSWER_GAPS.picture;
+  return ANSWER_GAPS.headToBody;
+}
+
 function answer(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
   // An explanation that goes on from the slide before (`{continua}`) draws no label and no
-  // answer: every line is explanation.
+  // answer: every line is explanation. Otherwise the slide's first line is the answer, drawn
+  // first wherever the pictures stand, and the rest keeps its written order.
   const continued = context.adjustments['continua'] === true;
-  const written = slideRichLines(context);
-  const first = continued ? undefined : written[0];
-  const rest = continued ? written : written.slice(1);
-  const picture = pictureOf(context);
+  const parts = slideParts(context);
+  let first: RichText | undefined;
+  const rest: Part[] = [];
+  for (const part of parts) {
+    if (continued || first !== undefined || part.kind !== 'lines') {
+      rest.push(part);
+      continue;
+    }
+    first = part.lines[0];
+    if (part.lines.length > 1) rest.push({ kind: 'lines', lines: part.lines.slice(1) });
+  }
 
-  /** The slide's blocks at one tuning: the heading, the explanation, the image. */
+  /** The slide's blocks at one tuning: the heading, then explanation and pictures in order. */
   const stackAt = (tuning: Tuning): Stacked => {
     const pieces: Piece[] = [];
-    const weights: number[] = [ANSWER_GAPS.edge];
+    const weights: number[] = [];
+    const extras: Extra[] = [];
+    let above: AnswerBlock | undefined;
     let text: TextDraft | undefined;
+    let bodies = 0;
+    const add = (kind: AnswerBlock, piece: Piece): void => {
+      weights.push(answerGap(above, kind));
+      pieces.push(piece);
+      above = kind;
+    };
     if (!continued) {
-      pieces.push({
+      add('head', {
         height: ANSWER.labelToAnswer + ANSWER.answerSize * CAP_HEIGHT,
         place: (capTop) => [
           textAt('rotulo', ANSWER_LABEL, {
@@ -863,31 +980,42 @@ function answer(context: TemplateContext, ink: Ink, lift: number): NodeDraft[] {
         ],
       });
     }
-    if (rest.length > 0) {
+    for (const part of rest) {
+      if (part.kind === 'picture') {
+        add('picture', picturePiece(part.picture, ANSWER.x, ink));
+        continue;
+      }
+      // The first run of explanation is the text the slide is fitted by; one after a picture
+      // follows its size and is read for an orphan by a break or letter spacing alone.
+      bodies += 1;
+      // The number now: the draft is drawn again later, when `bodies` has counted on.
+      const number = bodies;
+      const main = number === 1;
+      const extra = extras.length;
       const size = tuning.size;
       const style = { font: FACE, size, weight: LIGHT, color: ink('body-ink') };
       const draftAt = (capTop: number): TextDraft =>
         redrawn(
-          richAt('explicacao', rest, style, {
+          richAt(main ? 'explicacao' : `explicacao-${number}`, part.lines, style, {
             x: ANSWER.x,
             capTop,
             lineHeight: ANSWER.bodyLineHeight,
             width: ANSWER.bodyWidth,
-            letterSpacing: tuning.letterSpacing,
+            letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
           }),
-          tuning.runs,
+          main ? tuning.runs : tuning.extraRuns?.[extra],
         );
-      text = draftAt(0);
-      const count = lineCount(context, text, rest, size, ANSWER.bodyWidth);
-      if (pieces.length > 0) weights.push(ANSWER_GAPS.headToBody);
-      pieces.push(linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)]));
-    }
-    if (picture !== undefined) {
-      if (pieces.length > 0) weights.push(ANSWER_GAPS.picture);
-      pieces.push(picturePiece(picture, ANSWER.x, ink));
+      const draft = draftAt(0);
+      if (main) text = draft;
+      else extras.push({ text: draft, size });
+      const count = lineCount(context, draft, part.lines, size, ANSWER.bodyWidth);
+      add(
+        'body',
+        linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)]),
+      );
     }
     weights.push(ANSWER_GAPS.edge);
-    return { pieces, weights, ...(text === undefined ? {} : { text }), extras: [] };
+    return { pieces, weights, ...(text === undefined ? {} : { text }), extras };
   };
 
   return fitStack(context, 'explanation', stackAt, FOOTER_TOP - lift);

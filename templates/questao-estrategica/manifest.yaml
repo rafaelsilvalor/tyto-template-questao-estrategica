@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.4.1
+version: 0.5.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -20,13 +20,11 @@ slots:
   # The cover's picture, full bleed under the words. In the frontmatter: `fundo: ./fundo.png`.
   # Without it the cover is the deep colour, flat.
   fundo: { type: image }
-  # The pictures the middle slides show (a chart, a formula), each in a frame as tall as the
-  # picture's own shape makes it (Tyto ADR 0158), from 3:1 to square. In the frontmatter:
-  # `imagem-1: ./figura.png`; a statement or an answer shows it with `::lamina {imagem: 1}`.
-  imagem-1: { type: image }
-  imagem-2: { type: image }
-  imagem-3: { type: image }
-  imagem-4: { type: image }
+  # The pictures a statement or an answer shows (a chart, a formula), each where it is written
+  # among the slide's lines (Tyto ADR 0160, amended 2026-10-31), in a frame as tall as the
+  # picture's own shape makes it (Tyto ADR 0158), from 3:1 to square. After the slide's
+  # `::lamina`, `::imagem ./figura.png`; the indented lines under it go on with the slide.
+  imagem: { type: image, per: lamina, multiple: true }
   # The house's seal art, 1080 × 140, glued to the foot of the last slide (TYTO-201): the
   # number at the foot rises by it. In the frontmatter: `selo: ./selo.png`.
   selo: { type: image }
@@ -44,10 +42,9 @@ adjustments:
   resposta: { type: flag, applies: [lamina] }
   fecho: { type: flag, applies: [lamina] }
   continua: { type: flag, applies: [lamina] }
-  # Which `imagem-N` a middle slide shows. `proporcao`, its shape, width x height, is what v0.2.0
-  # needed because Tyto handed a template no image's size: since Tyto 0.12 the file's size wins,
-  # and the proportion written is used only for a picture the host could not measure.
-  imagem: { type: enum, values: ['1', '2', '3', '4'], applies: [lamina] }
+  # `proporcao`, a picture's shape, width x height, is what v0.2.0 needed because Tyto handed a
+  # template no image's size: since Tyto 0.12 the file's size wins, and the proportion written
+  # is used only for a picture on the slide the host could not measure.
   proporcao:
     {
       type: enum,

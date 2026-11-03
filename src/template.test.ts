@@ -92,14 +92,17 @@ const wordsOf = (slide: Frame, name: string): string =>
     .map(words)
     .join('\n');
 
-/** A statement showing `imagem-1`, the file at `path`, with the marks `extra` beside it. */
+/**
+ * A statement with the file at `path` between its words and its options, the marks `extra` on
+ * its `::lamina`.
+ */
 const pictured = (path: string, extra = ''): string =>
-  `---
-template: questao-estrategica
-formats: [grid]
-imagem-1: ${path}
----
-` + OPTIONS.replace('::lamina', `::lamina {imagem: 1${extra}}`);
+  `::lamina${extra === '' ? '' : ` {${extra}}`}
+  Qual destas é a resposta?
+::imagem ${path}
+  A) A primeira.
+  B) A segunda.
+  C) A terceira.`;
 
 /** How tall the slide's framed picture is drawn. */
 const pictureHeight = (slide: Frame): number =>
@@ -244,11 +247,11 @@ describe('questao-estrategica', () => {
   });
 
   it('still accepts {proporcao}: ignored when the file has a size, the shape when it has none', async () => {
-    const measured = await compiled(pictured('./900x300.png', ', proporcao: 1x1'), {
+    const measured = await compiled(pictured('./900x300.png', 'proporcao: 1x1'), {
       assets: anyImage,
     });
     const [ignored] = measured.value.scene.artworks.flatMap((artwork) => artwork.frames);
-    const [unmeasured] = await slides(pictured('./figura.png', ', proporcao: 1x1'), {
+    const [unmeasured] = await slides(pictured('./figura.png', 'proporcao: 1x1'), {
       assets: anyImage,
     });
     const [neither] = await slides(pictured('./figura.png'), { assets: anyImage });
@@ -262,30 +265,122 @@ describe('questao-estrategica', () => {
     expect(pictureHeight(neither!)).toBe(401);
   });
 
-  it('draws no frame when the slide names no image, or names one the brief left out', async () => {
+  it('draws no frame when the slide shows no picture', async () => {
     const [plainSlide] = await slides(OPTIONS);
-    const [missing] = await slides(OPTIONS.replace('::lamina', '::lamina {imagem: 2}'), {
-      assets: anyImage,
-    });
 
     expect(named(plainSlide!, 'moldura')).toEqual([]);
-    expect(named(missing!, 'moldura')).toEqual([]);
   });
 
   it('frames an image on the answer too', async () => {
-    const brief = `---
-template: questao-estrategica
-formats: [grid]
-imagem-1: ./800x600.png
----
-::lamina {resposta, imagem: 1}
+    const [slide] = await slides(
+      `::lamina {resposta}
   Letra A
-  Porque sim.`;
-    const [slide] = await slides(brief, { assets: anyImage });
+  Porque sim.
+::imagem ./800x600.png`,
+      { assets: anyImage },
+    );
 
     expect(named(slide!, 'moldura')).toHaveLength(1);
     expect(pictureHeight(slide!)).toBe(602);
     expect(wordsOf(slide!, 'resposta')).toBe('Letra A');
+  });
+
+  it('places several pictures among a statement’s lines, in the order written', async () => {
+    const [slide] = await slides(
+      `::lamina
+  Observe o primeiro gráfico.
+::imagem ./900x300.png
+  Agora observe o segundo.
+::imagem ./800x600.png
+  Compare os dois.
+  A) O primeiro.
+::imagem ./1200x200.png
+  B. O segundo.`,
+      { assets: anyImage },
+    );
+    const top = (node: SceneNode | undefined): number => node!.transform.y;
+    const [one, two, three] = named(slide!, 'moldura');
+
+    expect(named(slide!, 'imagem').map((node) => (node as { size: { h: number } }).size.h)).toEqual(
+      [267, 602, 267],
+    );
+    expect(wordsOf(slide!, 'enunciado')).toBe('Observe o primeiro gráfico.');
+    expect(wordsOf(slide!, 'enunciado-2')).toBe('Agora observe o segundo.');
+    expect(wordsOf(slide!, 'enunciado-3')).toBe('Compare os dois.');
+    // Words, picture, words, picture, an option, picture, an option: each below the one before.
+    const order = [
+      named(slide!, 'enunciado')[0],
+      one,
+      named(slide!, 'enunciado-2')[0],
+      two,
+      named(slide!, 'enunciado-3')[0],
+      named(slide!, 'alternativa-1')[0],
+      three,
+      named(slide!, 'alternativa-2')[0],
+    ].map(top);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(new Set(order).size).toBe(order.length);
+    // `B.` starts an option only after the first `X)`: the picture does not end the options.
+    expect(wordsOf(slide!, 'letra-2')).toBe('B.');
+  });
+
+  it('places pictures among an answer’s explanation, the answer drawn first', async () => {
+    const [slide] = await slides(
+      `::lamina {resposta}
+  Letra C
+  Primeiro o gráfico.
+::imagem ./900x300.png
+  Depois a conta.
+::imagem ./800x600.png
+  Por fim, o resultado.`,
+      { assets: anyImage },
+    );
+    const top = (name: string, index = 0): number => named(slide!, name)[index]!.transform.y;
+
+    expect(wordsOf(slide!, 'resposta')).toBe('Letra C');
+    expect(wordsOf(slide!, 'explicacao')).toBe('Primeiro o gráfico.');
+    expect(wordsOf(slide!, 'explicacao-2')).toBe('Depois a conta.');
+    expect(wordsOf(slide!, 'explicacao-3')).toBe('Por fim, o resultado.');
+    const order = [
+      top('resposta'),
+      top('explicacao'),
+      top('moldura', 0),
+      top('explicacao-2'),
+      top('moldura', 1),
+      top('explicacao-3'),
+    ];
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('casts the frame’s shadow from the frame itself, 20 px narrower on every side', async () => {
+    const [slide] = await slides(pictured('./900x300.png'), { assets: anyImage });
+    const [frame] = named(slide!, 'moldura');
+
+    expect(named(slide!, 'sombra')).toEqual([]);
+    expect((frame as { effects: unknown[] }).effects).toEqual([
+      { kind: 'shadow', x: 17, y: 47, blur: 12, spread: -20, color: { r: 0, g: 0, b: 0, a: 0.16 } },
+    ]);
+  });
+
+  it('refuses the v0.4 syntax, imagem-N and {imagem: N}, with a diagnostic and no frame', async () => {
+    const result = await compiled(
+      `---
+template: questao-estrategica
+formats: [grid]
+imagem-1: ./800x600.png
+---
+::lamina {imagem: 1}
+  Qual destas é a resposta?
+  A) A primeira.`,
+      { assets: anyImage },
+    );
+    const [slide] = result.value.scene.artworks.flatMap((artwork) => artwork.frames);
+
+    expect(result.diagnostics.map((item) => item.code).sort()).toEqual([
+      'E_BAD_ADJUSTMENT',
+      'E_UNKNOWN_SLOT',
+    ]);
+    expect(named(slide!, 'moldura')).toEqual([]);
   });
 
   it('draws no label on a slide that continues the one before', async () => {

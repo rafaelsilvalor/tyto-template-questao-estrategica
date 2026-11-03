@@ -21839,7 +21839,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21876,7 +21876,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.8.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.9.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21902,6 +21902,20 @@ function block(width, height, draft) {
 function at(x, y, item) {
   return shifted(item.draft, x, y);
 }
+var NUMBER = String.raw`\d[\d.,]*`;
+var KEEP_TOGETHER_RULES = [
+  { name: "currency sign + amount", before: String.raw`(?:R\$|US\$|€)`, after: String.raw`\d` },
+  {
+    name: "amount + scale word",
+    before: NUMBER,
+    after: String.raw`(?:mil|milhão|milhões|bi|bilhão|bilhões)(?!\p{L})`
+  },
+  { name: "number + percent", before: NUMBER, after: "%" }
+];
+var LABEL_EXCEPTIONS = [
+  { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
+  { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
+];
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -22051,23 +22065,23 @@ function withBreakBefore(runs, paragraph, piece) {
       result.push(run2);
       continue;
     }
-    let cut = -1;
-    for (let index = 0; index < run2.text.length && cut < 0; index += 1) {
+    let cut2 = -1;
+    for (let index = 0; index < run2.text.length && cut2 < 0; index += 1) {
       const space = run2.text[index] === " ";
       if (!space && afterSpace) {
         seen += 1;
-        if (seen === piece) cut = index;
+        if (seen === piece) cut2 = index;
       }
       afterSpace = space;
     }
-    if (cut < 0) {
+    if (cut2 < 0) {
       result.push(run2);
       continue;
     }
-    const head = run2.text.slice(0, cut).replace(/ +$/u, "");
+    const head = run2.text.slice(0, cut2).replace(/ +$/u, "");
     if (head !== "") result.push({ ...run2, text: head });
     else trimLast(result);
-    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut) });
+    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut2) });
     done = true;
   }
   return result;
@@ -22121,7 +22135,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22161,7 +22175,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22203,7 +22217,7 @@ function sealOf(context) {
   const value = context.slots["selo"]?.value;
   return value?.kind === "image" ? { asset: value.asset, height: SEAL_HEIGHT } : void 0;
 }
-var NUMBER = String.raw`\d[\d.,]*`;
+var NUMBER2 = String.raw`\d[\d.,]*`;
 var TABLE_VALUE_DEFAULTS = {
   "title-gap": TITLE.gap,
   "title-floor": TITLE.floor,
@@ -22452,12 +22466,8 @@ ${line.trim()}` };
   return options;
 }
 function statement(context, ink, lift) {
-  const all = slideRichLines(context);
-  const firstOption = all.findIndex((line) => OPTION.test(plain(line)));
-  const body = firstOption < 0 ? all : all.slice(0, firstOption);
-  const options = optionsOf((firstOption < 0 ? [] : all.slice(firstOption)).map(plain));
+  const segments = statementSegments(slideParts(context));
   const continued = context.adjustments["continua"] === true;
-  const picture = pictureOf(context);
   const stackAt = (tuning) => {
     const size = tuning.size;
     const scale = size / STATEMENT.bodySize;
@@ -22467,6 +22477,8 @@ function statement(context, ink, lift) {
     const extras = [];
     let above;
     let text2;
+    let bodies = 0;
+    let optionCount = 0;
     const add = (kind, piece) => {
       weights.push(statementGap(above, kind));
       pieces.push(piece);
@@ -22486,79 +22498,117 @@ function statement(context, ink, lift) {
         ])
       );
     }
-    if (body.length > 0) {
-      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
-      const draftAt = (capTop) => redrawn(
-        richAt("enunciado", body, style2, {
-          x: STATEMENT.x,
-          capTop,
-          lineHeight: STATEMENT.bodyLineHeight,
-          width: STATEMENT.bodyWidth,
-          letterSpacing: tuning.letterSpacing
-        }),
-        tuning.runs
-      );
-      text2 = draftAt(0);
-      const count = lineCount(context, text2, body, size, STATEMENT.bodyWidth);
-      add(
-        "body",
-        linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)])
-      );
-    }
-    if (picture !== void 0) add("picture", picturePiece(picture, FRAME_X, ink));
-    if (options.length > 0) {
-      const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
-      const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
-      const written = options;
-      const wordsAt = (index, capTop) => redrawn(
-        textAt(`alternativa-${index + 1}`, written[index]?.words ?? "", {
-          x: textX,
-          capTop,
-          size: optionSize,
-          weight: LIGHT,
-          color: ink("body-ink"),
-          lineHeight: STATEMENT.optionLineHeight,
-          width,
-          letterSpacing: tuning.extras[index] ?? 0
-        }),
-        tuning.extraRuns?.[index]
-      );
-      const counts = written.map((option, index) => {
-        const words = wordsAt(index, 0);
-        extras.push({ text: words, size: optionSize });
-        return lineCount(context, words, option.words.split("\n"), optionSize, width);
-      });
-      const leading = optionSize * STATEMENT.optionLineHeight;
-      const topsFrom = (first) => {
-        const tops = [];
-        let top = first;
-        for (const count of counts) {
-          tops.push(top);
-          top += (count - 1) * leading + STATEMENT.optionPitch * scale;
-        }
-        return tops;
-      };
-      const lastTop = topsFrom(0).at(-1) ?? 0;
-      const lastCount = counts.at(-1) ?? 1;
-      add("options", {
-        height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
-        place: (first) => topsFrom(first).flatMap((capTop, index) => [
-          textAt(`letra-${index + 1}`, written[index]?.letter ?? "", {
-            x: STATEMENT.optionX,
+    for (const segment of segments) {
+      if (segment.kind === "picture") {
+        add("picture", picturePiece(segment.picture, FRAME_X, ink));
+      } else if (segment.kind === "body") {
+        bodies += 1;
+        const number4 = bodies;
+        const main = number4 === 1;
+        const extra = extras.length;
+        const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+        const draftAt = (capTop) => redrawn(
+          richAt(main ? "enunciado" : `enunciado-${number4}`, segment.lines, style2, {
+            x: STATEMENT.x,
             capTop,
-            size: optionSize,
-            weight: MEDIUM,
-            color: ink("title-ink"),
-            lineHeight: STATEMENT.optionLineHeight
+            lineHeight: STATEMENT.bodyLineHeight,
+            width: STATEMENT.bodyWidth,
+            letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
           }),
-          wordsAt(index, capTop)
-        ])
-      });
+          main ? tuning.runs : tuning.extraRuns?.[extra]
+        );
+        const draft = draftAt(0);
+        if (main) text2 = draft;
+        else extras.push({ text: draft, size });
+        const count = lineCount(context, draft, segment.lines, size, STATEMENT.bodyWidth);
+        add(
+          "body",
+          linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)])
+        );
+      } else {
+        const first = optionCount;
+        optionCount += segment.options.length;
+        add(
+          "options",
+          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink)
+        );
+      }
     }
     weights.push(STATEMENT_GAPS.edge);
     return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
   return fitStack(context, "statement", stackAt, FOOTER_TOP - lift);
+}
+function optionsPiece(context, options, first, optionSize, tuning, extras, ink) {
+  const scale = optionSize / STATEMENT.optionSize;
+  const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
+  const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+  const offset = extras.length;
+  const wordsAt = (index, capTop) => redrawn(
+    textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? "", {
+      x: textX,
+      capTop,
+      size: optionSize,
+      weight: LIGHT,
+      color: ink("body-ink"),
+      lineHeight: STATEMENT.optionLineHeight,
+      width,
+      letterSpacing: tuning.extras[offset + index] ?? 0
+    }),
+    tuning.extraRuns?.[offset + index]
+  );
+  const counts = options.map((option, index) => {
+    const words = wordsAt(index, 0);
+    extras.push({ text: words, size: optionSize });
+    return lineCount(context, words, option.words.split("\n"), optionSize, width);
+  });
+  const leading = optionSize * STATEMENT.optionLineHeight;
+  const topsFrom = (top) => {
+    const tops = [];
+    let at2 = top;
+    for (const count of counts) {
+      tops.push(at2);
+      at2 += (count - 1) * leading + STATEMENT.optionPitch * scale;
+    }
+    return tops;
+  };
+  const lastTop = topsFrom(0).at(-1) ?? 0;
+  const lastCount = counts.at(-1) ?? 1;
+  return {
+    height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
+    place: (top) => topsFrom(top).flatMap((capTop, index) => [
+      textAt(`letra-${first + index + 1}`, options[index]?.letter ?? "", {
+        x: STATEMENT.optionX,
+        capTop,
+        size: optionSize,
+        weight: MEDIUM,
+        color: ink("title-ink"),
+        lineHeight: STATEMENT.optionLineHeight
+      }),
+      wordsAt(index, capTop)
+    ])
+  };
+}
+function statementSegments(parts) {
+  const segments = [];
+  let optionsBegun = false;
+  for (const part of parts) {
+    if (part.kind === "picture") {
+      segments.push(part);
+      continue;
+    }
+    const firstOption = optionsBegun ? 0 : part.lines.findIndex((line) => OPTION.test(plain(line)));
+    const body = firstOption < 0 ? part.lines : part.lines.slice(0, firstOption);
+    if (body.length > 0) segments.push({ kind: "body", lines: body });
+    if (firstOption >= 0) {
+      optionsBegun = true;
+      segments.push({
+        kind: "options",
+        options: optionsOf(part.lines.slice(firstOption).map(plain))
+      });
+    }
+  }
+  return segments;
 }
 function statementGap(above, kind) {
   if (above === void 0) return STATEMENT_GAPS.edge;
@@ -22670,14 +22720,33 @@ var PROPORTIONS = {
   "1x1": 1
 };
 var DEFAULT_PROPORTION = "2x1";
-function pictureOf(context) {
-  const which = context.adjustments["imagem"];
-  if (typeof which !== "string") return void 0;
-  const value = context.slots[`imagem-${which}`]?.value;
-  if (value?.kind !== "image") return void 0;
-  const written = context.adjustments["proporcao"];
-  const proportion = typeof written === "string" && written in PROPORTIONS ? written : DEFAULT_PROPORTION;
-  return { asset: value.asset, written: PROPORTIONS[proportion] };
+function slideParts(context) {
+  const slide = context.slots["lamina"];
+  const shape = context.adjustments["proporcao"];
+  const written = PROPORTIONS[typeof shape === "string" && shape in PROPORTIONS ? shape : DEFAULT_PROPORTION];
+  const parts = [];
+  const addLines = (text2) => {
+    const kept = lines(text2).filter((line) => plain(line).trim() !== "");
+    if (kept.length === 0) return;
+    const last = parts.at(-1);
+    if (last?.kind === "lines")
+      parts[parts.length - 1] = { kind: "lines", lines: [...last.lines, ...kept] };
+    else parts.push({ kind: "lines", lines: kept });
+  };
+  const addPicture = (value) => {
+    if (value?.kind === "image")
+      parts.push({ kind: "picture", picture: { asset: value.asset, written } });
+  };
+  if (slide?.blocks === void 0) {
+    if (slide?.value.kind === "rich-text") addLines(slide.value.text);
+    addPicture(context.slots["imagem"]?.value);
+    return parts;
+  }
+  for (const block2 of slide.blocks) {
+    if (block2.kind === "text") addLines(block2.text);
+    else addPicture(block2.slot.value);
+  }
+  return parts;
 }
 function framedImage(picture, at2, ink) {
   const width = FRAME.w - FRAME.side - FRAME.border;
@@ -22699,20 +22768,11 @@ function framedImage(picture, at2, ink) {
   });
   return {
     nodes: [
-      // The reference's shadow is narrower than the frame. A spread draws that since Tyto 0.12,
-      // but its HTML filter blurs half as wide as `drop-shadow()` (Tyto TYTO-500) and tints the
-      // frame (TYTO-501): until both land, a smaller shape hidden behind the frame casts it.
-      rect({
-        name: "sombra",
-        size: { w: FRAME.w - 2 * SHADOW_INSET, h: height - 2 * SHADOW_INSET },
-        fill: solid(ink("title-ink")),
-        effects: [SHADOW],
-        transform: { x: at2.x + SHADOW_INSET, y: at2.y + SHADOW_INSET }
-      }),
       rect({
         name: "moldura",
         size: { w: FRAME.w, h: height },
         fill: solid(ink("title-ink")),
+        effects: [SHADOW],
         transform: { x: at2.x, y: at2.y }
       }),
       rect({ name: "fundo-imagem", size, fill: solid(ink("paper")), transform: inside }),
@@ -22723,13 +22783,12 @@ function framedImage(picture, at2, ink) {
     foot: at2.y + height
   };
 }
-var SHADOW_INSET = 20;
 var SHADOW = {
   kind: "shadow",
   x: 17,
   y: 47,
   blur: 12,
-  spread: 0,
+  spread: -20,
   color: { r: 0, g: 0, b: 0, a: 0.16 }
 };
 var ANSWER = {
@@ -22743,18 +22802,38 @@ var ANSWER = {
   bodyWidth: 840
 };
 var ANSWER_GAPS = { edge: 102, headToBody: 165, picture: FRAME_GAP };
+function answerGap(above, kind) {
+  if (above === void 0) return ANSWER_GAPS.edge;
+  if (above === "picture" || kind === "picture") return ANSWER_GAPS.picture;
+  return ANSWER_GAPS.headToBody;
+}
 function answer(context, ink, lift) {
   const continued = context.adjustments["continua"] === true;
-  const written = slideRichLines(context);
-  const first = continued ? void 0 : written[0];
-  const rest = continued ? written : written.slice(1);
-  const picture = pictureOf(context);
+  const parts = slideParts(context);
+  let first;
+  const rest = [];
+  for (const part of parts) {
+    if (continued || first !== void 0 || part.kind !== "lines") {
+      rest.push(part);
+      continue;
+    }
+    first = part.lines[0];
+    if (part.lines.length > 1) rest.push({ kind: "lines", lines: part.lines.slice(1) });
+  }
   const stackAt = (tuning) => {
     const pieces = [];
-    const weights = [ANSWER_GAPS.edge];
+    const weights = [];
+    const extras = [];
+    let above;
     let text2;
+    let bodies = 0;
+    const add = (kind, piece) => {
+      weights.push(answerGap(above, kind));
+      pieces.push(piece);
+      above = kind;
+    };
     if (!continued) {
-      pieces.push({
+      add("head", {
         height: ANSWER.labelToAnswer + ANSWER.answerSize * CAP_HEIGHT,
         place: (capTop) => [
           textAt("rotulo", ANSWER_LABEL, {
@@ -22774,30 +22853,38 @@ function answer(context, ink, lift) {
         ]
       });
     }
-    if (rest.length > 0) {
+    for (const part of rest) {
+      if (part.kind === "picture") {
+        add("picture", picturePiece(part.picture, ANSWER.x, ink));
+        continue;
+      }
+      bodies += 1;
+      const number4 = bodies;
+      const main = number4 === 1;
+      const extra = extras.length;
       const size = tuning.size;
       const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
       const draftAt = (capTop) => redrawn(
-        richAt("explicacao", rest, style2, {
+        richAt(main ? "explicacao" : `explicacao-${number4}`, part.lines, style2, {
           x: ANSWER.x,
           capTop,
           lineHeight: ANSWER.bodyLineHeight,
           width: ANSWER.bodyWidth,
-          letterSpacing: tuning.letterSpacing
+          letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
         }),
-        tuning.runs
+        main ? tuning.runs : tuning.extraRuns?.[extra]
       );
-      text2 = draftAt(0);
-      const count = lineCount(context, text2, rest, size, ANSWER.bodyWidth);
-      if (pieces.length > 0) weights.push(ANSWER_GAPS.headToBody);
-      pieces.push(linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)]));
-    }
-    if (picture !== void 0) {
-      if (pieces.length > 0) weights.push(ANSWER_GAPS.picture);
-      pieces.push(picturePiece(picture, ANSWER.x, ink));
+      const draft = draftAt(0);
+      if (main) text2 = draft;
+      else extras.push({ text: draft, size });
+      const count = lineCount(context, draft, part.lines, size, ANSWER.bodyWidth);
+      add(
+        "body",
+        linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)])
+      );
     }
     weights.push(ANSWER_GAPS.edge);
-    return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras: [] };
+    return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
   return fitStack(context, "explanation", stackAt, FOOTER_TOP - lift);
 }

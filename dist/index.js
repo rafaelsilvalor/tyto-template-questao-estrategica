@@ -21839,7 +21839,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21876,7 +21876,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.8.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.9.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21902,6 +21902,20 @@ function block(width, height, draft) {
 function at(x, y, item) {
   return shifted(item.draft, x, y);
 }
+var NUMBER = String.raw`\d[\d.,]*`;
+var KEEP_TOGETHER_RULES = [
+  { name: "currency sign + amount", before: String.raw`(?:R\$|US\$|€)`, after: String.raw`\d` },
+  {
+    name: "amount + scale word",
+    before: NUMBER,
+    after: String.raw`(?:mil|milhão|milhões|bi|bilhão|bilhões)(?!\p{L})`
+  },
+  { name: "number + percent", before: NUMBER, after: "%" }
+];
+var LABEL_EXCEPTIONS = [
+  { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
+  { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
+];
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -22051,23 +22065,23 @@ function withBreakBefore(runs, paragraph, piece) {
       result.push(run2);
       continue;
     }
-    let cut = -1;
-    for (let index = 0; index < run2.text.length && cut < 0; index += 1) {
+    let cut2 = -1;
+    for (let index = 0; index < run2.text.length && cut2 < 0; index += 1) {
       const space = run2.text[index] === " ";
       if (!space && afterSpace) {
         seen += 1;
-        if (seen === piece) cut = index;
+        if (seen === piece) cut2 = index;
       }
       afterSpace = space;
     }
-    if (cut < 0) {
+    if (cut2 < 0) {
       result.push(run2);
       continue;
     }
-    const head = run2.text.slice(0, cut).replace(/ +$/u, "");
+    const head = run2.text.slice(0, cut2).replace(/ +$/u, "");
     if (head !== "") result.push({ ...run2, text: head });
     else trimLast(result);
-    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut) });
+    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut2) });
     done = true;
   }
   return result;
@@ -22121,7 +22135,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22161,7 +22175,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22203,7 +22217,7 @@ function sealOf(context) {
   const value = context.slots["selo"]?.value;
   return value?.kind === "image" ? { asset: value.asset, height: SEAL_HEIGHT } : void 0;
 }
-var NUMBER = String.raw`\d[\d.,]*`;
+var NUMBER2 = String.raw`\d[\d.,]*`;
 var TABLE_VALUE_DEFAULTS = {
   "title-gap": TITLE.gap,
   "title-floor": TITLE.floor,

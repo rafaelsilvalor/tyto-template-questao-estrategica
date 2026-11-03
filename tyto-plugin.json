@@ -1,6 +1,6 @@
 {
   "name": "questao-estrategica",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "engine": ">=0.13",
   "contributes": ["template-pack"],
   "permissions": ["font:CircularXX"]

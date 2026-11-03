@@ -22,7 +22,7 @@ templates:
   questao-estrategica:
     source:
       git: https://github.com/rafaelsilvalor/tyto-template-questao-estrategica.git
-      ref: v0.4.1
+      ref: v0.5.0
 ```
 
 Tyto fetches the tag the next time it loads templates, or now with `tyto plugin sync`, and asks
@@ -48,7 +48,6 @@ marks what each slide is:
 template: questao-estrategica
 formats: [grid]
 fundo: ./fundo.png
-imagem-1: ./grafico.png
 selo: ./selo.png
 ---
 
@@ -57,8 +56,10 @@ selo: ./selo.png
   Prefeitura de
   Vale Alto/XY
 
-::lamina {imagem: 1}
-  O gráfico mostra as matrículas de quatro escolas. Qual teve mais?
+::lamina
+  O gráfico mostra as matrículas de quatro escolas.
+::imagem ./grafico.png
+  Qual teve mais?
   A) A primeira.
   B) A segunda.
 
@@ -85,18 +86,61 @@ selo: ./selo.png
   statement or `{resposta, continua}`): no label, its words start where the label would. A
   question may have as many middle slides as its content needs; every slide is numbered
   `01 I 06` from its place.
-- **A picture** on a statement or an answer: `{imagem: N}` shows the brief's `imagem-N` (1 to 4)
-  under the slide's words, in the reference's frame. The frame is as tall as the picture's own
-  shape makes it at the frame's width (Tyto reads the size off the file, ADR 0158; Tyto 0.12 or
-  later), from a 3:1 band to a square: a wider picture gets a 3:1 frame and a taller one a
-  square, the picture fitted whole inside with paper beside it.
+- **Pictures** on a statement or an answer: `::imagem ./figura.png` after the slide's
+  `::lamina` shows the file where it is written among the slide's lines, and the indented lines
+  under it go on with the slide (Tyto ADR 0160, amended 2026-10-31; Tyto core 0.36 or later).
+  A slide may show any number of them. Lines up to the first `X)` are the statement and every
+  line from it on is options, a picture between them or not; on the answer, the first line is
+  the answer, drawn first, and the explanation and its pictures follow in the order written.
+  Each frame is as tall as the picture's own shape makes it at the frame's width (Tyto reads
+  the size off the file, ADR 0158), from a 3:1 band to a square: a wider picture gets a 3:1
+  frame and a taller one a square, the picture fitted whole inside with paper beside it. The
+  frame casts the reference's shadow itself (a `spread` of −20 px, Tyto TYTO-500 and TYTO-501).
 - **`{proporcao: …}` is no longer needed.** Briefs that write it still render, without a
   warning: the file's size wins, and the proportion written — `3x1`, `5x2`, `7x3`, `2x1`
-  (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture Tyto could not measure.
+  (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture on the slide Tyto could
+  not measure.
 - **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `::fecho`, its
   first line the title and the rest the paragraph, `**bold**` kept.
 - **The seal**, `selo: ./selo.png`, 1080 × 140, glued to the foot of the last slide; that
   slide's number rises by the band.
+
+## From v0.4 to v0.5
+
+v0.5.0 replaces the four frontmatter pictures and the slide's `{imagem: N}` with pictures
+written where they stand. A brief in the old form still renders, without its pictures, and
+says why: `imagem-1:` in the frontmatter is `E_UNKNOWN_SLOT` and `{imagem: 1}` is
+`E_BAD_ADJUSTMENT`. Move each picture's path from the frontmatter to an `::imagem` line after
+the slide that showed it; v0.4 drew it after the statement and before the options, or after
+the explanation:
+
+v0.4:
+
+```
+---
+template: questao-estrategica
+imagem-1: ./grafico.png
+---
+::lamina {imagem: 1}
+  Qual escola teve mais matrículas?
+  A) A primeira.
+  B) A segunda.
+```
+
+v0.5:
+
+```
+---
+template: questao-estrategica
+---
+::lamina
+  Qual escola teve mais matrículas?
+::imagem ./grafico.png
+  A) A primeira.
+  B) A segunda.
+```
+
+`{proporcao}` stays as it was.
 
 ## What it may reach
 
@@ -135,9 +179,10 @@ so the middle is centred. The words are set at the largest size that keeps every
 paragraph that would end on a line of one word is set again (`settle`, Tyto kit 0.8): first the
 line above breaks one word earlier, at the same size; then letter spacing within
 `orphan-tracking` (0.01 em); then a size up to `orphan-shrink` (8%) smaller. An option, whose
-size is the statement's, moves a word down or its letter spacing only. Past those limits the
-slide is drawn and
-`W_TEMPLATE_ORPHAN` names the word.
+size is the statement's, moves a word down or its letter spacing only, and so does a run of
+statement or explanation written after a picture. A picture keeps the reference's 48 px over
+and under its frame. Past those limits the slide is drawn and `W_TEMPLATE_ORPHAN` names the
+word.
 
 ## Development
 
@@ -160,7 +205,9 @@ The tests, all without Tyto:
 - `src/template.test.ts`: the carousel's rules on the scene — which slide each mark makes, the
   numbering and the arrows, every text starting inside its slide, the statement split at its
   first option, a picture framed as tall as its file's shape on a statement and an answer, held
-  between 3:1 and square, `{proporcao}` used only when the file has no size, the
+  between 3:1 and square, several pictures among a slide's lines in the order written, the
+  frame casting its own shadow, the v0.4 picture syntax refused with a diagnostic,
+  `{proporcao}` used only when the file has no size, the
   continued slides without a label, the cover's exam lines sized between floor and ceiling,
   the overflow warning, the seal on the last slide and the number lifted by it.
 - `src/rhythm.test.ts`: the middle slides' gaps in the reference's proportions and centred, a

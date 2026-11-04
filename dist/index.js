@@ -22720,7 +22720,7 @@ function linesPiece(count, size, lineHeight, place) {
 }
 function picturePiece(picture, x, ink, look) {
   const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
-  return { height, place: (y) => framedImage(picture, { x, y }, ink, look).nodes };
+  return { height, place: (y) => framedImage(picture, { x, y: Math.round(y) }, ink, look).nodes };
 }
 var FRAME = {
   w: 835,
@@ -22779,6 +22779,7 @@ function framedImage(picture, at2, ink, look) {
     Math.max(width / FRAME_SHAPES.widest, natural)
   );
   const size = { w: width, h: Math.round(clamped) };
+  const fit = clamped === natural ? "cover" : "contain";
   const height = size.h + 2 * FRAME.border;
   const inside = { x: at2.x + FRAME.side, y: at2.y + FRAME.border };
   const r = FRAME.radius;
@@ -22799,7 +22800,7 @@ function framedImage(picture, at2, ink, look) {
         transform: { x: at2.x, y: at2.y }
       }),
       rect({ name: "fundo-imagem", size, fill: solid(ink(look.frameFill)), transform: inside }),
-      image({ name: "imagem", asset: picture.asset, size, fit: "contain", transform: inside }),
+      image({ name: "imagem", asset: picture.asset, size, fit, transform: inside }),
       corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
     ],

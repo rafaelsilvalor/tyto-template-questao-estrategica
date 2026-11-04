@@ -870,7 +870,9 @@ function linesPiece(
 /** The framed image as a block, from its frame's top. */
 function picturePiece(picture: Picture, x: number, ink: Ink, look: Look): Piece {
   const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
-  return { height, place: (y) => framedImage(picture, { x, y }, ink, look).nodes };
+  // On whole pixels: at a fractional y the border's and the corner's antialiased edges meet on
+  // one row and the paper shows through as a light seam (measured, TYTO-608).
+  return { height, place: (y) => framedImage(picture, { x, y: Math.round(y) }, ink, look).nodes };
 }
 
 /** The image's frame: where it stands, how wide, and its gap to the words over and under it. */
@@ -984,6 +986,10 @@ function framedImage(
     Math.max(width / FRAME_SHAPES.widest, natural),
   );
   const size = { w: width, h: Math.round(clamped) };
+  // A picture whose own shape the frame takes covers it, losing under a pixel to the rounding;
+  // `contain` would leave half a pixel of paper down each side, a light seam (TYTO-608). Only a
+  // picture held between the shapes is fitted whole, with paper around it.
+  const fit = clamped === natural ? 'cover' : 'contain';
   const height = size.h + 2 * FRAME.border;
   const inside = { x: at.x + FRAME.side, y: at.y + FRAME.border };
   const r = FRAME.radius;
@@ -1005,7 +1011,7 @@ function framedImage(
         transform: { x: at.x, y: at.y },
       }),
       rect({ name: 'fundo-imagem', size, fill: solid(ink(look.frameFill)), transform: inside }),
-      image({ name: 'imagem', asset: picture.asset, size, fit: 'contain', transform: inside }),
+      image({ name: 'imagem', asset: picture.asset, size, fit, transform: inside }),
       corner('canto-superior', `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner('canto-inferior', `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r),
     ],

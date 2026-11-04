@@ -24,9 +24,26 @@ The plugin draws two templates from the same code:
 Both read the same brief: change its `template:` line and nothing else. The statement, the
 options, the answer, the explanation and the pictures are shared code (`src/template.ts`),
 which each template sets with its own numbers (`Look`); only the frame differs
-(`src/engenharia.ts`). In `questao-engenharia`, `**x**` sets words in Bold and
-`{cor:azul|vermelho|verde|ocre}x{/}` in Bold and a colour, in the statement and the
-explanation; an option's words take neither yet.
+(`src/engenharia.ts`).
+
+## Highlights and formulas
+
+In both templates (TYTO-607), `**x**` sets words in Bold and `{cor:azul|vermelho|verde|ocre}x{/}`
+in Bold and a colour, in the statement, the options and the explanation, and in the sign-off's
+paragraph. They are the kit's highlights (Tyto TYTO-554), so a configuration changes them under
+the value names every Tyto template shares: `highlight-weight` (700) and
+`mark-cor-azul|vermelho|verde|ocre` (`#2f628a`, `#873131`, `#39902e`, `#8a662d`, the
+engineering reference's swatches). A name the template does not list, `{cor:roxo}x{/}`, leaves
+its words as they are.
+
+Math is written as plain Unicode: `Δv = a·Δt`, `α ≤ 30°`, `x²`, `10⁻³`. A glyph CircularXX
+lacks is drawn in Tyto's bundled symbol face (Tyto ADR 0168, core 0.37 or later): Noto Sans
+Math, or Source Sans 3 for what Noto Sans Math leaves to text faces. On the maintainer's
+CircularXX that is `α`, `β` and `⁻` of the examples; `Δ`, `≤`, `²`, `·` and `°` stay in
+CircularXX. Noto Sans Math has one weight, so a Greek letter inside a highlight is drawn at 400. `examples/formula.brief` in each template shows them.
+
+**From v0.6:** questao-engenharia's `highlight-azul|vermelho|verde|ocre` values are now
+`mark-cor-azul|vermelho|verde|ocre`: a plugin file that set the old names renames them.
 
 ## Install into Tyto
 
@@ -124,7 +141,8 @@ selo: ./selo.png
   (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture on the slide Tyto could
   not measure.
 - **The sign-off**, `{fecho}`, empty: `Curtiu?` and its paragraph, or the brief's `::fecho`, its
-  first line the title and the rest the paragraph, `**bold**` kept.
+  first line the title and the rest the paragraph, `**bold**` and `{cor:…}` kept, written in
+  the frontmatter or as a directive.
 - **The seal**, `selo: ./selo.png`, 1080 × 140, glued to the foot of the last slide; that
   slide's number rises by the band.
 
@@ -237,12 +255,13 @@ The tests, all without Tyto:
   continued explanation centred, and the orphan control — the screenshot's explanation cleared
   by the default limits and named by `W_TEMPLATE_ORPHAN` without them, an option the same by
   letter spacing — measured against a half-em face standing in for CircularXX.
-- `tests/examples.test.ts`: the example brief compiled as Tyto compiles it, through
+- `tests/examples.test.ts`: the example briefs compiled as Tyto compiles them, through
   `@tyto/template-kit/testing` (Tyto ADR 0152), against the HTML of each slide in
   `tests/__snapshots__/`. Nothing is measured and faces are placeholders, so the snapshots move
   when the composition does and not when a machine has another font.
-- `tests/faces.test.ts`: the manifest's `faces` are exactly the faces the example draws — in a
-  plugin's process a face left out measures as nothing.
+- `tests/faces.test.ts`: each manifest's `faces` are exactly the faces its examples draw,
+  the symbol chain included — in a plugin's process a face left out measures as nothing. CI
+  has no CircularXX, so the faces stand in with the glyphs each lacks, read from their `cmap`.
 - `tests/values.test.ts`: the declared values — each default pinned to the one the code falls
   back to, and a colour set in a test found in the HTML.
 - `tests/plugin.test.ts`: the built `dist/index.js`, loaded through

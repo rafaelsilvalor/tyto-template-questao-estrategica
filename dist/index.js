@@ -2805,23 +2805,23 @@ function canParseURL(input2) {
     return false;
   }
 }
-function validateURL(trimmed, def) {
+function validateURL(trimmed2, def) {
   if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) {
-    return canParseURL(trimmed) || URL_UNPARSEABLE;
+    return canParseURL(trimmed2) || URL_UNPARSEABLE;
   }
-  return parseURLObject(trimmed, def);
+  return parseURLObject(trimmed2, def);
 }
-function parseURLObject(trimmed, def) {
-  if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) {
+function parseURLObject(trimmed2, def) {
+  if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed2)) {
     return URL_BAD_FORMAT;
   }
   try {
     if (typeof URL !== "undefined") {
       const URLStatic = URL;
       if (typeof URLStatic.parse === "function")
-        return URLStatic.parse(trimmed) ?? URL_UNPARSEABLE;
+        return URLStatic.parse(trimmed2) ?? URL_UNPARSEABLE;
     }
-    return new URL(trimmed);
+    return new URL(trimmed2);
   } catch {
     return URL_UNPARSEABLE;
   }
@@ -2842,8 +2842,8 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
   $ZodStringFormat.init(inst, def);
   inst._zod.check = (payload) => {
     try {
-      const trimmed = payload.value.trim();
-      const url2 = validateURL(trimmed, def);
+      const trimmed2 = payload.value.trim();
+      const url2 = validateURL(trimmed2, def);
       if (url2 === URL_BAD_FORMAT) {
         payload.issues.push({
           code: "invalid_format",
@@ -2866,7 +2866,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
         return;
       }
       if (url2 === true) {
-        payload.value = stripTabAndNewline(trimmed);
+        payload.value = stripTabAndNewline(trimmed2);
         return;
       }
       if (def.hostname && !urlHostnameOk(url2, def.hostname)) {
@@ -2891,7 +2891,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
           continue: !def.abort
         });
       }
-      payload.value = def.normalize ? url2.href : stripTabAndNewline(trimmed);
+      payload.value = def.normalize ? url2.href : stripTabAndNewline(trimmed2);
       return;
     } catch (_) {
       payload.issues.push({
@@ -5098,7 +5098,7 @@ function isRecursive(inst, stack, resolve) {
     }
     return answer2;
   };
-  const merge2 = (answer2) => {
+  const merge3 = (answer2) => {
     if (answer2 > result)
       result = answer2;
   };
@@ -5107,7 +5107,7 @@ function isRecursive(inst, stack, resolve) {
   switch (kind) {
     case "object": {
       const raw = rawShape(def);
-      merge2(raw ? shape(raw, true) : ASSUMED);
+      merge3(raw ? shape(raw, true) : ASSUMED);
       check2(def.catchall);
       break;
     }
@@ -5157,7 +5157,7 @@ function isRecursive(inst, stack, resolve) {
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
       const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
-      merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
+      merge3(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
     // a leaf by choice: `parts` are regex fragments, not data positions
@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.36.1/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-AVQMXBFG.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.37.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-BDXPNDLY.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20610,6 +20610,17 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
+  // Raised by `compile` while it lays out text, on the host only (ADR 0168): the host lays out
+  // every frame again with every bundled face, a code template's included, so it is the one
+  // place that sees the whole symbol chain and the layout that is drawn.
+  W_GLYPH_MISSING: {
+    severity: "warning",
+    summary: "Text uses characters that neither its font nor the bundled symbol faces can draw.",
+    template: "Text in slot '{slot}' uses {glyphs}, which neither '{font}' nor the bundled symbol faces can draw, in format '{format}'. Another font on this machine may draw them, measured wrong.",
+    spec: "docs/adr/0168-a-glyph-its-face-lacks-is-drawn-in-the-symbol-face.md",
+    fatal: false,
+    fatality: "The artwork is drawn. The characters are measured as the font measures a glyph it lacks, and the browser draws them in whatever face it finds, so the line around them may break or align wrong."
+  },
   // Raised by a template through `context.report` rather than by a stage (ADR 0058). The
   // template names only the code and how far it ran over; `compile` fills in the artwork and
   // the format and points the range at the directive the artwork came from.
@@ -20628,6 +20639,17 @@ var diagnosticCodes = {
     summary: "A paragraph of an artwork ends on a line holding a single word in one format.",
     template: "Artwork '{artwork}' ends a paragraph on the single word '{word}' in format '{format}': no size or letter spacing within the template's limits moved another word down to it.",
     spec: "docs/adr/0167-a-template-spaces-its-blocks-by-weight-and-keeps-orphans-off-its-text.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
+  // Raised by a template the same way (TYTO-502): a file it draws with, a format's background
+  // say, is not in its folder. A warning, as every template report is (ADR 0058): the rest of
+  // the frame is drawn, and the person sees which file to put back.
+  W_TEMPLATE_FILE_MISSING: {
+    severity: "warning",
+    summary: "A file an artwork's template draws with is not in the template's folder in one format.",
+    template: "Artwork '{artwork}' is drawn without '{path}' in format '{format}': template '{template}' has no such file in its folder.",
+    spec: "docs/adr/0058-a-template-reports-warnings-beside-its-frame.md",
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
@@ -21690,9 +21712,9 @@ function absorbedByPrevious(target, produced, range) {
 function styled(inline, style2, options) {
   switch (inline.kind) {
     case "bold":
-      return { ...style2, weight: options.bold ?? BOLD };
+      return typeof options.bold === "object" ? { ...style2, weight: BOLD, ...options.bold } : { ...style2, weight: options.bold ?? BOLD };
     case "italic":
-      return { ...style2, style: "italic" };
+      return { ...style2, ...options.italic, style: "italic" };
     case "mark":
       return { ...style2, ...options.mark?.(inline.key, inline.value) };
     default:
@@ -21737,7 +21759,7 @@ function imageValue(context, name) {
   return typeof value === "object" && "hash" in value ? value : void 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.36.1/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.37.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -21839,7 +21861,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21876,7 +21898,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.9.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.10.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21912,10 +21934,222 @@ var KEEP_TOGETHER_RULES = [
   },
   { name: "number + percent", before: NUMBER, after: "%" }
 ];
+var LONGEST_LABEL = 40;
 var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
+function separatorAt(line, options) {
+  const separator = options.separator ?? ":";
+  if (separator === "") return void 0;
+  const covered = (options.notLabels ?? LABEL_EXCEPTIONS).flatMap(
+    (exception) => [...line.matchAll(new RegExp(exception.pattern, "gu"))].map((match) => ({
+      start: match.index,
+      end: match.index + match[0].length
+    }))
+  );
+  let at2 = line.indexOf(separator);
+  while (at2 >= 0 && covered.some((span) => span.start <= at2 && at2 < span.end)) {
+    at2 = line.indexOf(separator, at2 + 1);
+  }
+  if (at2 < 0) return void 0;
+  const label = line.slice(0, at2);
+  if (label.includes("\n") || label.trim() === "") return void 0;
+  if ([...label.trim()].length > (options.longestLabel ?? LONGEST_LABEL)) return void 0;
+  return at2;
+}
+function labelOf(line, options = {}) {
+  const at2 = separatorAt(flatten2(line), options);
+  if (at2 === void 0) return { label: void 0, text: line };
+  const end = at2 + (options.separator ?? ":").length;
+  return {
+    label: cut(line, 0, options.keepSeparator === false ? at2 : end),
+    text: cut(line, end, Infinity)
+  };
+}
+function cut(value, start, end) {
+  let offset = 0;
+  const within = (inlines) => inlines.flatMap((inline) => {
+    switch (inline.kind) {
+      case "text": {
+        const from = offset;
+        offset += inline.value.length;
+        const kept = inline.value.slice(Math.max(start - from, 0), Math.max(end - from, 0));
+        if (kept === "") return [];
+        const shift2 = Math.max(start - from, 0);
+        const rangeStart = Math.min(inline.range.start + shift2, inline.range.end);
+        return [
+          {
+            ...inline,
+            value: kept,
+            range: {
+              start: rangeStart,
+              end: Math.min(rangeStart + kept.length, inline.range.end)
+            }
+          }
+        ];
+      }
+      case "break": {
+        const from = offset;
+        offset += 1;
+        return start <= from && from < end ? [inline] : [];
+      }
+      default: {
+        const children = within(inline.children);
+        return children.length === 0 ? [] : [{ ...inline, children }];
+      }
+    }
+  });
+  return within(value);
+}
+function flatten2(value) {
+  return value.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return flatten2(inline.children);
+    }
+  }).join("");
+}
+var HIGHLIGHT_WEIGHT = 700;
+function mergeFamilies(base2, over) {
+  if (over === void 0) return base2;
+  const merged = { ...base2 };
+  for (const [key, family] of Object.entries(over)) {
+    const previous = merged[key];
+    const like = family.like ?? previous?.like;
+    merged[key] = {
+      ...like === void 0 ? {} : { like },
+      values: { ...previous?.values, ...family.values }
+    };
+  }
+  return merged;
+}
+function merge2(base2, over) {
+  const marks = mergeFamilies(base2.marks, over.marks);
+  return {
+    bold: { ...base2.bold, ...over.bold },
+    italic: { ...base2.italic, ...over.italic },
+    ...marks === void 0 ? {} : { marks }
+  };
+}
+function markStyle(spec, key, value) {
+  const family = spec.marks?.[key];
+  const named = family?.values[value];
+  if (family === void 0 || named === void 0) return void 0;
+  switch (family.like) {
+    case "bold":
+      return { weight: HIGHLIGHT_WEIGHT, ...spec.bold, ...named };
+    case "italic":
+      return { ...spec.italic, ...named, style: "italic" };
+    default:
+      return named;
+  }
+}
+function highlights(spec) {
+  return {
+    spec,
+    options: {
+      bold: { weight: HIGHLIGHT_WEIGHT, ...spec.bold },
+      italic: spec.italic ?? {},
+      mark: (key, value) => markStyle(spec, key, value)
+    },
+    with: (override) => highlights(merge2(spec, override))
+  };
+}
+function declaredColor(context, name, fallback) {
+  return typeof fallback === "string" ? colorValue(context, name, fallback) : typeof context.values?.[name] === "string" ? context.values[name] : fallback;
+}
+function highlightsFromValues(context, defaults, place) {
+  const weight = numberValue(
+    context,
+    "highlight-weight",
+    defaults.bold?.weight ?? HIGHLIGHT_WEIGHT
+  );
+  const houseColor = declaredColor(context, "highlight-color", defaults.bold?.color);
+  const color2 = place === void 0 ? houseColor : declaredColor(context, `${place}-highlight-color`, houseColor);
+  const marks = {};
+  for (const [key, family] of Object.entries(defaults.marks ?? {})) {
+    const values = {};
+    for (const [name, style2] of Object.entries(family.values)) {
+      const declared = declaredColor(context, `mark-${key}-${name}`, style2.color);
+      values[name] = declared === void 0 ? style2 : { ...style2, color: declared };
+    }
+    marks[key] = { ...family, values };
+  }
+  return highlights({
+    ...defaults,
+    bold: { ...defaults.bold, weight, ...color2 === void 0 ? {} : { color: color2 } },
+    ...defaults.marks === void 0 ? {} : { marks }
+  });
+}
+function richTextOfPlain(source) {
+  const inlines = [];
+  let literalStart = 0;
+  let literal2 = "";
+  const flush = (end) => {
+    if (literal2 !== "") {
+      inlines.push({ kind: "text", value: literal2, range: { start: literalStart, end } });
+    }
+    literal2 = "";
+  };
+  const textAt2 = (value, start) => ({
+    kind: "text",
+    value,
+    range: { start, end: start + value.length }
+  });
+  let at2 = 0;
+  while (at2 < source.length) {
+    if (source.startsWith("**", at2)) {
+      const close = source.indexOf("**", at2 + 2);
+      const inner = close < 0 ? "" : source.slice(at2 + 2, close);
+      if (inner !== "" && !inner.includes("\n")) {
+        flush(at2);
+        inlines.push({
+          kind: "bold",
+          children: [textAt2(inner, at2 + 2)],
+          range: { start: at2, end: close + 2 }
+        });
+        at2 = close + 2;
+        literalStart = at2;
+        continue;
+      }
+    }
+    const opening = /^\{([\p{L}\d-]+):([^{}\n]+)\}/u.exec(source.slice(at2));
+    if (opening !== null) {
+      const contentStart = at2 + opening[0].length;
+      const close = source.indexOf("{/}", contentStart);
+      const inner = close < 0 ? "" : source.slice(contentStart, close);
+      if (inner !== "" && !inner.includes("\n") && !inner.includes("{")) {
+        flush(at2);
+        inlines.push({
+          kind: "mark",
+          key: opening[1],
+          value: opening[2],
+          children: [textAt2(inner, contentStart)],
+          range: { start: at2, end: close + 3 }
+        });
+        at2 = close + 3;
+        literalStart = at2;
+        continue;
+      }
+    }
+    if (source[at2] === "\n") {
+      flush(at2);
+      inlines.push({ kind: "break", range: { start: at2, end: at2 + 1 } });
+      at2 += 1;
+      literalStart = at2;
+      continue;
+    }
+    literal2 += source[at2];
+    at2 += 1;
+  }
+  flush(at2);
+  return inlines;
+}
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -22135,7 +22369,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22178,7 +22412,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.4.5/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22289,6 +22523,29 @@ var REGULAR = 400;
 var MEDIUM = 500;
 var BOLD3 = 700;
 var BLACK = 900;
+var MARK_COLORS = {
+  azul: "#2f628a",
+  vermelho: "#873131",
+  verde: "#39902e",
+  ocre: "#8a662d"
+};
+var HIGHLIGHTS = {
+  bold: { weight: BOLD3 },
+  marks: {
+    cor: {
+      like: "bold",
+      values: Object.fromEntries(
+        Object.entries(MARK_COLORS).map(([name, color2]) => [name, { color: color2 }])
+      )
+    }
+  }
+};
+var HIGHLIGHT_DEFAULTS = {
+  "highlight-weight": BOLD3,
+  ...Object.fromEntries(
+    Object.entries(MARK_COLORS).map(([name, color2]) => [`mark-cor-${name}`, color2])
+  )
+};
 var ASCENT = 0.75;
 var DESCENT = 0.25;
 var CAP_HEIGHT = 0.709;
@@ -22468,17 +22725,36 @@ var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
 var LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
 function optionsOf(lines2) {
   const options = [];
-  for (const line of lines2) {
-    const [, letter, words = ""] = OPTION.exec(line) ?? LATER_OPTION.exec(line) ?? [];
+  for (const written of lines2) {
+    const line = typeof written === "string" ? richTextOfPlain(written) : written;
+    const text2 = plain(line);
+    const first = OPTION.exec(text2);
+    const [, letter] = first ?? LATER_OPTION.exec(text2) ?? [];
     const last = options.at(-1);
+    const separator = first === null ? "." : ")";
+    const words = trimmed(
+      letter === void 0 ? line : labelOf(line, { separator, longestLabel: Infinity, notLabels: [] }).text
+    );
     if (letter !== void 0 || last === void 0) {
-      options.push({ letter: letter ?? "", words: letter === void 0 ? line.trim() : words });
+      options.push({ letter: letter ?? "", words: [words] });
     } else {
-      options[options.length - 1] = { letter: last.letter, words: `${last.words}
-${line.trim()}` };
+      options[options.length - 1] = { letter: last.letter, words: [...last.words, words] };
     }
   }
   return options;
+}
+function trimmed(line) {
+  const edge = (inlines, side) => {
+    const index = side === "start" ? 0 : inlines.length - 1;
+    const inline = inlines[index];
+    if (inline === void 0 || inline.kind === "break") return inlines;
+    const replaced = inline.kind === "text" ? { ...inline, value: side === "start" ? inline.value.trimStart() : inline.value.trimEnd() } : { ...inline, children: edge(inline.children, side) };
+    const copy = [...inlines];
+    if (replaced.kind === "text" && replaced.value === "") copy.splice(index, 1);
+    else copy[index] = replaced;
+    return copy;
+  };
+  return edge(edge(line, "start"), "end");
 }
 function statement(context, ink, lift, shared) {
   const look = shared.statement;
@@ -22539,7 +22815,7 @@ function statement(context, ink, lift, shared) {
               width: look.bodyWidth,
               letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
             },
-            runsOptions(shared, ink)
+            runsOptions(context, shared)
           ),
           main ? tuning.runs : tuning.extraRuns?.[extra]
         );
@@ -22556,7 +22832,17 @@ function statement(context, ink, lift, shared) {
         optionCount += segment.options.length;
         add(
           "options",
-          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink, look)
+          optionsPiece(
+            context,
+            segment.options,
+            first,
+            optionSize,
+            tuning,
+            extras,
+            ink,
+            look,
+            runsOptions(context, shared)
+          )
         );
       }
     }
@@ -22565,28 +22851,37 @@ function statement(context, ink, lift, shared) {
   };
   return fitStack(context, "statement", stackAt, shared.room.bottom - lift, shared);
 }
-function optionsPiece(context, options, first, optionSize, tuning, extras, ink, look) {
+function optionsPiece(context, options, first, optionSize, tuning, extras, ink, look, marked) {
   const scale = optionSize / look.optionSize;
   const textX = look.optionX + (look.optionTextX - look.optionX) * scale;
   const width = look.optionWidth - (textX - look.optionTextX);
   const offset = extras.length;
+  const style2 = {
+    font: FACE2,
+    size: optionSize,
+    weight: look.optionWeight,
+    color: ink(look.bodyInk)
+  };
   const wordsAt = (index, capTop) => redrawn(
-    textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? "", {
-      x: textX,
-      capTop,
-      size: optionSize,
-      weight: look.optionWeight,
-      color: ink(look.bodyInk),
-      lineHeight: look.optionLineHeight,
-      width,
-      letterSpacing: tuning.extras[offset + index] ?? 0
-    }),
+    richAt(
+      `alternativa-${first + index + 1}`,
+      options[index]?.words ?? [],
+      style2,
+      {
+        x: textX,
+        capTop,
+        lineHeight: look.optionLineHeight,
+        width,
+        letterSpacing: tuning.extras[offset + index] ?? 0
+      },
+      marked
+    ),
     tuning.extraRuns?.[offset + index]
   );
   const counts = options.map((option, index) => {
     const words = wordsAt(index, 0);
     extras.push({ text: words, size: optionSize });
-    return lineCount(context, words, option.words.split("\n"), optionSize, width);
+    return lineCount(context, words, option.words, optionSize, width);
   });
   const leading = optionSize * look.optionLineHeight;
   const topsFrom = (top) => {
@@ -22630,7 +22925,7 @@ function statementSegments(parts) {
       optionsBegun = true;
       segments.push({
         kind: "options",
-        options: optionsOf(part.lines.slice(firstOption).map(plain))
+        options: optionsOf(part.lines.slice(firstOption))
       });
     }
   }
@@ -22864,7 +23159,7 @@ var HOUSE = {
   answer: ANSWER,
   room: { top: ROOM_TOP, bottom: FOOTER_TOP },
   numbers: NUMBER_DEFAULTS,
-  bold: BOLD3,
+  highlights: HIGHLIGHTS,
   frameInk: "title-ink",
   frameFill: "paper"
 };
@@ -22962,7 +23257,7 @@ function answer(context, ink, lift, shared) {
             width: look.bodyWidth,
             letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
           },
-          runsOptions(shared, ink)
+          runsOptions(context, shared)
         ),
         main ? tuning.runs : tuning.extraRuns?.[extra]
       );
@@ -23018,15 +23313,15 @@ function signOff(context, ink) {
       width: SLIDE_WIDTH,
       align: "center"
     }),
-    parsed.length > 1 ? richAt("fecho-texto", parsed.slice(1), style2, box) : textRuns("fecho-texto", boldRuns(words, style2), { ...box, size: style2.size }),
+    richAt(
+      "fecho-texto",
+      parsed.length > 1 ? parsed.slice(1) : words.split("\n").map(richTextOfPlain),
+      style2,
+      box,
+      runsOptions(context, HOUSE)
+    ),
     ...likeBar(ink)
   ];
-}
-function boldRuns(words, style2) {
-  return words.split("\n").flatMap((line, index) => [
-    ...index > 0 ? [lineBreak()] : [],
-    ...line.split(/\*\*/).map((piece, part) => ({ piece, bold: part % 2 === 1 })).filter(({ piece }) => piece !== "").map(({ piece, bold }) => run(piece, bold ? { ...style2, weight: BOLD3 } : style2))
-  ]);
 }
 function likeBar(ink) {
   const icon = (name, x, d, filled, w) => vector({
@@ -23085,16 +23380,8 @@ function arrow(box, color2) {
     transform: { x: box.x, y: box.y }
   });
 }
-function runsOptions(look, ink) {
-  const marks = look.marks;
-  if (marks === void 0) return { bold: look.bold };
-  return {
-    bold: look.bold,
-    mark: (key, value) => {
-      const name = key === "cor" ? marks[value] : void 0;
-      return name === void 0 ? void 0 : { color: ink(name), weight: look.bold };
-    }
-  };
+function runsOptions(context, look) {
+  return highlightsFromValues(context, look.highlights).options;
 }
 function textAt(name, words, placed) {
   const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
@@ -23105,7 +23392,7 @@ function textAt(name, words, placed) {
     placed
   );
 }
-function richAt(name, written, style2, box, options = { bold: BOLD3 }) {
+function richAt(name, written, style2, box, options) {
   const runs = written.flatMap((line, index) => [
     ...index > 0 ? [lineBreak()] : [],
     ...runsOf(line, style2, options)
@@ -23174,12 +23461,7 @@ var COLOR_DEFAULTS2 = {
   /** The statement, the options' words, the explanation and the signature on paper. */
   "body-ink": "#4d4d4d",
   /** The "+" on paper. */
-  "ornament-ink": "#cccccc",
-  /** The four `{cor:…}` highlights, at the bold's weight. */
-  "highlight-azul": "#2f628a",
-  "highlight-vermelho": "#873131",
-  "highlight-verde": "#39902e",
-  "highlight-ocre": "#8a662d"
+  "ornament-ink": "#cccccc"
 };
 var NUMBER_DEFAULTS2 = {
   "exam-floor": 56,
@@ -23192,20 +23474,13 @@ var NUMBER_DEFAULTS2 = {
   "orphan-shrink": NUMBER_DEFAULTS["orphan-shrink"],
   "orphan-tracking": NUMBER_DEFAULTS["orphan-tracking"]
 };
-var MARKS = {
-  azul: "highlight-azul",
-  vermelho: "highlight-vermelho",
-  verde: "highlight-verde",
-  ocre: "highlight-ocre"
-};
 var FOOTER_TOP2 = 1222;
 var SLACK = 1 / 3;
 var gap = (pixels) => pixels * SLACK;
 var LOOK = {
   room: { top: 134, bottom: FOOTER_TOP2 },
   numbers: NUMBER_DEFAULTS2,
-  bold: BOLD3,
-  marks: MARKS,
+  highlights: HIGHLIGHTS,
   frameInk: "title-ink",
   frameFill: "paper",
   statement: {

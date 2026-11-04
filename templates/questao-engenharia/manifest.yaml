@@ -1,16 +1,22 @@
 name: questao-engenharia
-version: 0.1.0
+version: 0.2.0
 brand: engenharia
 description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
 # CircularXX is licensed: it crosses only under the manifest's `font:CircularXX`, approved at
 # install. `tests/faces.test.ts` holds this list equal to the faces the examples draw.
+# The last three are Tyto's bundled symbol chain (Tyto ADR 0168): a glyph CircularXX lacks (α, β,
+# ⁻) is drawn in Noto Sans Math, or else in Source Sans 3 at 400 or 700, the nearer the run's
+# weight. Listed, the template's own measure agrees with the host's on a line holding a formula.
 faces:
   - { family: CircularXX, weight: 300 }
   - { family: CircularXX, weight: 400 }
   - { family: CircularXX, weight: 500 }
   - { family: CircularXX, weight: 700 }
   - { family: CircularXX, weight: 900 }
+  - { family: Noto Sans Math, weight: 400 }
+  - { family: Source Sans 3, weight: 400 }
+  - { family: Source Sans 3, weight: 700 }
 fonts:
   CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
 formats: [grid]

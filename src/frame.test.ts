@@ -7,7 +7,14 @@ import { describe, expect, it } from 'vitest';
 import { build as buildEngineering } from './engenharia.js';
 import { build as buildHouse } from './template.js';
 
-import type { AssetResolver, Frame, ImageNode, SceneNode, TemplateBuild } from '@tyto/core';
+import type {
+  AssetResolver,
+  Frame,
+  ImageNode,
+  SceneNode,
+  TemplateBuild,
+  TextNode,
+} from '@tyto/core';
 
 /**
  * A picture's frame, in both templates (TYTO-608): at a fractional y the border's and the
@@ -54,7 +61,7 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
   const template = defineTemplate(manifest.value, build);
 
   /** The statement slide with one picture, its frame and the image node. */
-  async function framed(picture: string) {
+  async function framed(picture: string, marks = '') {
     const brief = [
       '---',
       `template: ${name}`,
@@ -63,7 +70,7 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
       '',
       '::lamina',
       '  O gráfico mostra as matrículas de quatro escolas.',
-      `::imagem ./${picture}`,
+      `::imagem ${marks}./${picture}`,
       '  Qual teve mais?',
       '  A) A primeira.',
       '  B) A segunda.',
@@ -75,7 +82,8 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
     const all = nodes(slide);
     const frame = all.find((node) => node.name === 'moldura');
     const image = all.find((node): node is ImageNode => node.kind === 'image');
-    return { frame, image };
+    const words = all.find((node): node is TextNode => node.name === 'enunciado');
+    return { frame, image, words };
   }
 
   it('stands the frame on whole pixels', async () => {
@@ -88,5 +96,52 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
   it('covers the frame with a picture of a shape it takes, and fits a taller one whole', async () => {
     expect((await framed('900x300.png')).image?.fit).toBe('cover');
     expect((await framed('300x900.png')).image?.fit).toBe('contain');
+  });
+
+  it("draws a {sem-quadro} picture alone, at the words' left edge and width", async () => {
+    const { frame, image, words } = await framed('900x300.png', '{sem-quadro} ');
+
+    expect(frame).toBeUndefined();
+    expect(image?.transform.x).toBe(words?.transform.x);
+    expect(image?.size.w).toBe(words?.box.w);
+    expect(Number.isInteger(image?.transform.y)).toBe(true);
+  });
+
+  it('reads {sem-quadro} on each ::imagem apart, and not when written after the path', async () => {
+    const brief = (pictures: readonly string[]) =>
+      [
+        '---',
+        `template: ${name}`,
+        'formats: [grid]',
+        '---',
+        '',
+        '::lamina',
+        '  O gráfico mostra as matrículas de quatro escolas.',
+        ...pictures,
+        '  A) A primeira.',
+        '',
+      ].join('\n');
+    const drawn = async (pictures: readonly string[]) => {
+      const result = await compileTemplate({
+        brief: brief(pictures),
+        template,
+        formats,
+        assets: sized,
+      });
+      if (!result.ok) throw new Error(result.error.map((item) => item.message).join('\n'));
+      const all = nodes(result.value.scene.artworks.flatMap((artwork) => artwork.frames)[0]!);
+      return {
+        frames: all.filter((node) => node.name === 'moldura').length,
+        images: all.filter((node) => node.kind === 'image').length,
+      };
+    };
+
+    expect(await drawn(['::imagem {sem-quadro} ./900x300.png', '::imagem ./600x300.png'])).toEqual({
+      frames: 1,
+      images: 2,
+    });
+    // The brief language reads the first `{…}` after the directive's name; after the path it
+    // is not a mark, and the picture keeps its frame.
+    expect(await drawn(['::imagem ./900x300.png {sem-quadro}'])).toEqual({ frames: 1, images: 1 });
   });
 });

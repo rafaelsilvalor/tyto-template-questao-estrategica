@@ -49,8 +49,8 @@ import {
 
 import type {
   AssetRef,
+  ResolvedSlot,
   RichText,
-  SlotValue,
   TemplateBuild,
   TemplateContext,
   TextRun,
@@ -520,7 +520,10 @@ export function statement(
     }
     for (const segment of segments) {
       if (segment.kind === 'picture') {
-        add('picture', picturePiece(segment.picture, look.frameX, ink, shared));
+        add(
+          'picture',
+          picturePiece(segment.picture, look.frameX, ink, shared, { x: look.x, w: look.bodyWidth }),
+        );
       } else if (segment.kind === 'body') {
         // The first run of statement is the text the slide is fitted by; a run after a picture
         // follows its size and is read for an orphan by a break or letter spacing, as an option.
@@ -868,7 +871,24 @@ function linesPiece(
 }
 
 /** The framed image as a block, from its frame's top. */
-function picturePiece(picture: Picture, x: number, ink: Ink, look: Look): Piece {
+/**
+ * A picture as a block, from its top: framed at `x`, or, with `{sem-quadro}`, alone at the
+ * words' own left edge and width (`text`), as voce-conhece sets its pictures.
+ */
+function picturePiece(
+  picture: Picture,
+  x: number,
+  ink: Ink,
+  look: Look,
+  text: { readonly x: number; readonly w: number },
+): Piece {
+  if (picture.bare) {
+    const height = bareImage(picture, { x: text.x, y: 0 }, text.w).foot;
+    return {
+      height,
+      place: (y) => bareImage(picture, { x: text.x, y: Math.round(y) }, text.w).nodes,
+    };
+  }
   const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
   // On whole pixels: at a fractional y the border's and the corner's antialiased edges meet on
   // one row and the paper shows through as a light seam (measured, TYTO-608).
@@ -914,6 +934,8 @@ interface Picture {
   readonly asset: AssetRef;
   /** The shape the slide writes, width over height: the frame's when the file has no size. */
   readonly written: number;
+  /** `::imagem {sem-quadro} ./x.png`: the picture alone, at the words' left edge and width. */
+  readonly bare: boolean;
 }
 
 /** A middle slide's body as written: runs of lines and the pictures among them. */
@@ -946,19 +968,21 @@ function slideParts(context: TemplateContext): Part[] {
       parts[parts.length - 1] = { kind: 'lines', lines: [...last.lines, ...kept] };
     else parts.push({ kind: 'lines', lines: kept });
   };
-  const addPicture = (value: SlotValue | undefined): void => {
-    if (value?.kind === 'image')
-      parts.push({ kind: 'picture', picture: { asset: value.asset, written } });
+  const addPicture = (slot: ResolvedSlot | undefined): void => {
+    const value = slot?.value;
+    if (value?.kind !== 'image') return;
+    const bare = slot?.adjustments.some((each) => each.name === 'sem-quadro') ?? false;
+    parts.push({ kind: 'picture', picture: { asset: value.asset, written, bare } });
   };
   // A host that hands no order has the slide's opening text and its first picture, after it.
   if (slide?.blocks === undefined) {
     if (slide?.value.kind === 'rich-text') addLines(slide.value.text);
-    addPicture(context.slots['imagem']?.value);
+    addPicture(context.slots['imagem']);
     return parts;
   }
   for (const block of slide.blocks) {
     if (block.kind === 'text') addLines(block.text);
-    else addPicture(block.slot.value);
+    else addPicture(block.slot);
   }
   return parts;
 }
@@ -1016,6 +1040,29 @@ function framedImage(
       corner('canto-inferior', `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r),
     ],
     foot: at.y + height,
+  };
+}
+
+/**
+ * A picture with no frame (`{sem-quadro}`, TYTO-608): the image alone, `width` wide (the
+ * words') and as tall as its own shape makes it, held between `FRAME_SHAPES`. No border, bar,
+ * corners, shadow or paper behind it.
+ */
+function bareImage(
+  picture: Picture,
+  at: { readonly x: number; readonly y: number },
+  width: number,
+): { readonly nodes: NodeDraft[]; readonly foot: number } {
+  const natural = imageHeight(picture.asset, width, width / picture.written);
+  const clamped = Math.min(
+    width / FRAME_SHAPES.tallest,
+    Math.max(width / FRAME_SHAPES.widest, natural),
+  );
+  const size = { w: width, h: Math.round(clamped) };
+  const fit = clamped === natural ? 'cover' : 'contain';
+  return {
+    nodes: [image({ name: 'imagem', asset: picture.asset, size, fit, transform: at })],
+    foot: at.y + size.h,
   };
 }
 
@@ -1193,7 +1240,13 @@ export function answer(
     }
     for (const part of rest) {
       if (part.kind === 'picture') {
-        add('picture', picturePiece(part.picture, look.x, ink, shared));
+        add(
+          'picture',
+          picturePiece(part.picture, look.x, ink, shared, {
+            x: look.bodyX ?? look.x,
+            w: look.bodyWidth,
+          }),
+        );
         continue;
       }
       // The first run of explanation is the text the slide is fitted by; one after a picture

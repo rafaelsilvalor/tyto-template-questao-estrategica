@@ -114,6 +114,11 @@ selo: ./selo.png
   the size off the file, ADR 0158), from a 3:1 band to a square: a wider picture gets a 3:1
   frame and a taller one a square, the picture fitted whole inside with paper beside it. The
   frame casts the reference's shadow itself (a `spread` of −20 px, Tyto TYTO-500 and TYTO-501).
+- **A picture with no frame**, in both templates (TYTO-608): `::imagem {sem-quadro} ./figura.png`
+  draws the picture alone, with no border, bar or shadow, at the words' left edge and width,
+  as tall as its shape makes it between the same 3:1 and square. The mark goes before the
+  path, as `::lamina {capa}`: written after it, the brief language does not read it as a
+  mark, and the picture keeps its frame. Each `::imagem` takes its own.
 - **`{proporcao: …}` is no longer needed.** Briefs that write it still render, without a
   warning: the file's size wins, and the proportion written — `3x1`, `5x2`, `7x3`, `2x1`
   (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture on the slide Tyto could

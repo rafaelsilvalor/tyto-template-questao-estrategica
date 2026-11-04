@@ -117,10 +117,12 @@ const MARKS = {
 const FOOTER_TOP = 1222;
 
 /**
- * The gaps' weights are the reference's gaps times this: at the reference's size its copy
- * lands where the art has it, with room to spare against `gap-floor`.
+ * The gaps' weights are the reference's gaps times this. Only their proportions place the
+ * blocks, so the reference's copy lands where the art has it at any factor; the factor sets
+ * how far a gap may close before the words shrink (`gap-floor`): a third, so the gap over the
+ * statement may close to about the house's 70 px and a slide with a picture still fits.
  */
-const SLACK = 0.95;
+const SLACK = 1 / 3;
 const gap = (pixels: number): number => pixels * SLACK;
 
 /**

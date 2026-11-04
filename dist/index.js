@@ -22517,7 +22517,10 @@ function statement(context, ink, lift, shared) {
     }
     for (const segment of segments) {
       if (segment.kind === "picture") {
-        add("picture", picturePiece(segment.picture, look.frameX, ink, shared));
+        add(
+          "picture",
+          picturePiece(segment.picture, look.frameX, ink, shared, { x: look.x, w: look.bodyWidth })
+        );
       } else if (segment.kind === "body") {
         bodies += 1;
         const number4 = bodies;
@@ -22718,7 +22721,14 @@ function drawn(stacked, tops, top) {
 function linesPiece(count, size, lineHeight, place) {
   return { height: (count - 1) * size * lineHeight + size * CAP_HEIGHT, place };
 }
-function picturePiece(picture, x, ink, look) {
+function picturePiece(picture, x, ink, look, text2) {
+  if (picture.bare) {
+    const height2 = bareImage(picture, { x: text2.x, y: 0 }, text2.w).foot;
+    return {
+      height: height2,
+      place: (y) => bareImage(picture, { x: text2.x, y: Math.round(y) }, text2.w).nodes
+    };
+  }
   const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
   return { height, place: (y) => framedImage(picture, { x, y: Math.round(y) }, ink, look).nodes };
 }
@@ -22756,18 +22766,20 @@ function slideParts(context) {
       parts[parts.length - 1] = { kind: "lines", lines: [...last.lines, ...kept] };
     else parts.push({ kind: "lines", lines: kept });
   };
-  const addPicture = (value) => {
-    if (value?.kind === "image")
-      parts.push({ kind: "picture", picture: { asset: value.asset, written } });
+  const addPicture = (slot) => {
+    const value = slot?.value;
+    if (value?.kind !== "image") return;
+    const bare = slot?.adjustments.some((each) => each.name === "sem-quadro") ?? false;
+    parts.push({ kind: "picture", picture: { asset: value.asset, written, bare } });
   };
   if (slide?.blocks === void 0) {
     if (slide?.value.kind === "rich-text") addLines(slide.value.text);
-    addPicture(context.slots["imagem"]?.value);
+    addPicture(context.slots["imagem"]);
     return parts;
   }
   for (const block2 of slide.blocks) {
     if (block2.kind === "text") addLines(block2.text);
-    else addPicture(block2.slot.value);
+    else addPicture(block2.slot);
   }
   return parts;
 }
@@ -22805,6 +22817,19 @@ function framedImage(picture, at2, ink, look) {
       corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
     ],
     foot: at2.y + height
+  };
+}
+function bareImage(picture, at2, width) {
+  const natural = imageHeight(picture.asset, width, width / picture.written);
+  const clamped = Math.min(
+    width / FRAME_SHAPES.tallest,
+    Math.max(width / FRAME_SHAPES.widest, natural)
+  );
+  const size = { w: width, h: Math.round(clamped) };
+  const fit = clamped === natural ? "cover" : "contain";
+  return {
+    nodes: [image({ name: "imagem", asset: picture.asset, size, fit, transform: at2 })],
+    foot: at2.y + size.h
   };
 }
 var SHADOW = {
@@ -22910,7 +22935,13 @@ function answer(context, ink, lift, shared) {
     }
     for (const part of rest) {
       if (part.kind === "picture") {
-        add("picture", picturePiece(part.picture, look.x, ink, shared));
+        add(
+          "picture",
+          picturePiece(part.picture, look.x, ink, shared, {
+            x: look.bodyX ?? look.x,
+            w: look.bodyWidth
+          })
+        );
         continue;
       }
       bodies += 1;
@@ -23168,7 +23199,7 @@ var MARKS = {
   ocre: "highlight-ocre"
 };
 var FOOTER_TOP2 = 1222;
-var SLACK = 0.95;
+var SLACK = 1 / 3;
 var gap = (pixels) => pixels * SLACK;
 var LOOK = {
   room: { top: 134, bottom: FOOTER_TOP2 },

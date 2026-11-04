@@ -122,13 +122,13 @@ export const NUMBER_DEFAULTS = {
   'orphan-tracking': ORPHAN_LIMITS.tracking,
 } as const;
 
-const FACE = { family: 'CircularXX', source: 'system' } as const;
-const LIGHT = 300;
-const REGULAR = 400;
-const MEDIUM = 500;
-const BOLD = 700;
+export const FACE = { family: 'CircularXX', source: 'system' } as const;
+export const LIGHT = 300;
+export const REGULAR = 400;
+export const MEDIUM = 500;
+export const BOLD = 700;
 /** The reference sets "Curtiu?" in ExtraBlack, which Tyto has no face for: Black, the maintainer's call. */
-const BLACK = 900;
+export const BLACK = 900;
 
 /**
  * CircularXX's vertical metrics, in em, from its `OS/2` table and the same in every weight: a
@@ -143,7 +143,7 @@ function capOffset(size: number, lineHeight: number): number {
   return size * ((lineHeight - (ASCENT + DESCENT)) / 2 + (ASCENT - CAP_HEIGHT));
 }
 
-const SLIDE_WIDTH = 1080;
+export const SLIDE_WIDTH = 1080;
 /** The top of the arrows and the numbers at every slide's foot. */
 const FOOTER_TOP = 1259;
 /** A glyph's advance, in em, for when nothing can be measured (a test, CI without the face). */
@@ -265,6 +265,20 @@ function cover(context: TemplateContext, ink: Ink, last: boolean, lift: number):
   ];
 }
 
+/** How a template sets the cover's exam lines, as plain numbers. */
+export interface ExamLook {
+  readonly x: number;
+  readonly capTop: number;
+  readonly lineHeight: number;
+  readonly width: number;
+  /** Where their room ends, before the seal lifts it. */
+  readonly bottom: number;
+  readonly weight: number;
+  readonly estimatedAdvance: number;
+  /** Letter spacing, in em of the size the lines are set at. */
+  readonly tracking?: number;
+}
+
 /** The cover's exam lines: where they start, how wide they may run, where their room ends. */
 const EXAM = {
   x: 85,
@@ -277,6 +291,7 @@ const EXAM = {
   bottom: 1162 - 80,
   /** A capital's advance, in em, for when nothing can be measured (a test, CI without the face). */
   estimatedAdvance: 0.6,
+  weight: BOLD,
 } as const;
 
 /**
@@ -286,40 +301,44 @@ const EXAM = {
  * that keeps every line as the brief writes it; when none does, the size at which the lines may
  * wrap between words; when not even the floor fits, the floor, reported as an overflow.
  */
-function examLines(context: TemplateContext, color: string, lift: number): NodeDraft {
+export function examLines(
+  context: TemplateContext,
+  color: string,
+  lift: number,
+  exam: ExamLook = EXAM,
+  numbers: Readonly<Record<'exam-floor' | 'exam-ceiling', number>> = NUMBER_DEFAULTS,
+): NodeDraft {
   const written = slideLines(context);
-  const floor = numberValue(context, 'exam-floor', NUMBER_DEFAULTS['exam-floor']);
-  const ceiling = Math.max(
-    floor,
-    numberValue(context, 'exam-ceiling', NUMBER_DEFAULTS['exam-ceiling']),
-  );
-  const bottom = EXAM.bottom - lift;
+  const floor = numberValue(context, 'exam-floor', numbers['exam-floor']);
+  const ceiling = Math.max(floor, numberValue(context, 'exam-ceiling', numbers['exam-ceiling']));
+  const bottom = exam.bottom - lift;
   const draft = (size: number) =>
     textAt('prova', written.join('\n'), {
-      x: EXAM.x,
-      capTop: EXAM.capTop,
+      x: exam.x,
+      capTop: exam.capTop,
       size,
-      weight: BOLD,
+      weight: exam.weight,
       color,
-      lineHeight: EXAM.lineHeight,
-      width: EXAM.width,
+      lineHeight: exam.lineHeight,
+      width: exam.width,
+      ...(exam.tracking === undefined ? {} : { letterSpacing: exam.tracking * size }),
     });
   const layout = (size: number): { readonly lines: number; readonly width: number } => {
     const node = draft(size);
     const measured = node.kind === 'text' ? context.measure(node) : undefined;
     if (measured !== undefined) return measured;
     const widest = Math.max(0, ...written.map((line) => [...line].length));
-    return { lines: written.length, width: widest * EXAM.estimatedAdvance * size };
+    return { lines: written.length, width: widest * exam.estimatedAdvance * size };
   };
   const foot = (size: number, lines: number) =>
-    EXAM.capTop + (lines - 1) * size * EXAM.lineHeight + size * CAP_HEIGHT;
+    exam.capTop + (lines - 1) * size * exam.lineHeight + size * CAP_HEIGHT;
 
   const sizes: number[] = [];
   for (let size = Math.floor(ceiling); size >= floor; size -= 1) sizes.push(size);
   const fits = (size: number, keepLines: boolean) => {
     const laid = layout(size);
     return (
-      laid.width <= EXAM.width + 0.5 &&
+      laid.width <= exam.width + 0.5 &&
       foot(size, laid.lines) <= bottom &&
       (!keepLines || laid.lines <= Math.max(1, written.length))
     );
@@ -333,7 +352,7 @@ function examLines(context: TemplateContext, color: string, lift: number): NodeD
 /* ----------------------------------------------------------------------- the statement -- */
 
 /** The gap the reference leaves over and under an image's frame, in px. */
-const FRAME_GAP = 48;
+export const FRAME_GAP = 48;
 
 /** Where a statement's frame stands: its left bar 8 px left of the words, as the reference. */
 const FRAME_X = 123;
@@ -345,6 +364,8 @@ export interface Label {
   readonly weight: number;
   /** A colour's declared value name. */
   readonly ink: string;
+  /** Letter spacing, in em. */
+  readonly tracking?: number;
 }
 
 /**
@@ -369,9 +390,13 @@ export interface StatementLook {
   readonly optionWeight: number;
   readonly letterWeight: number;
   readonly letterInk: string;
-  /** The gaps' weights (Tyto ADR 0167): edge, label to body, body to options, a picture's. */
+  /**
+   * The gaps' weights (Tyto ADR 0167): over the first block, label to body, body to options,
+   * a picture's, and under the last block.
+   */
   readonly gaps: {
     readonly edge: number;
+    readonly foot: number;
     readonly labelToBody: number;
     readonly bodyToOptions: number;
     readonly picture: number;
@@ -407,7 +432,7 @@ const STATEMENT = {
    * options, each over the 70 of the first. The gap under the options is the one over the
    * label, so the slide's middle is centred between the logo and the footer.
    */
-  gaps: { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP },
+  gaps: { edge: 70, foot: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP },
   frameX: FRAME_X,
 } as const;
 
@@ -518,7 +543,7 @@ export function statement(
                 width: look.bodyWidth,
                 letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
               },
-              shared.bold,
+              runsOptions(shared, ink),
             ),
             main ? tuning.runs : tuning.extraRuns?.[extra],
           );
@@ -539,7 +564,7 @@ export function statement(
         );
       }
     }
-    weights.push(look.gaps.edge);
+    weights.push(look.gaps.foot);
     return { pieces, weights, ...(text === undefined ? {} : { text }), extras };
   };
 
@@ -692,6 +717,11 @@ export interface Look {
   readonly numbers: StackNumbers;
   /** The weight `**bold**` takes. */
   readonly bold: number;
+  /**
+   * `{cor:<name>}x{/}`: each name the brief may write, to a colour's declared value name. The
+   * mark also takes the bold's weight. None, and the mark leaves its words as they are.
+   */
+  readonly marks?: Readonly<Record<string, string>>;
   /** A picture's frame and the paper behind the picture, by colour name. */
   readonly frameInk: string;
   readonly frameFill: string;
@@ -1004,18 +1034,35 @@ const SHADOW = {
 /** How a template sets the answer slide, as plain numbers, like `StatementLook`. */
 export interface AnswerLook {
   readonly x: number;
+  /** Where the explanation starts, when not at `x`. */
+  readonly bodyX?: number;
   readonly label: Label;
   /** From the label's capitals to the answer's. */
   readonly labelToAnswer: number;
   readonly answerSize: number;
   readonly answerWeight: number;
   readonly answerInk: string;
+  /** The answer's letter spacing, in em. */
+  readonly answerTracking?: number;
   readonly bodyWeight: number;
   readonly bodyInk: string;
   readonly bodyLineHeight: number;
   readonly bodyWidth: number;
-  /** The gaps' weights (Tyto ADR 0167): edge, the heading to the body, a picture's. */
-  readonly gaps: { readonly edge: number; readonly headToBody: number; readonly picture: number };
+  /** A rule under the answer: its gap from the answer's baseline, its size and colour name. */
+  readonly rule?: {
+    readonly gap: number;
+    readonly x: number;
+    readonly w: number;
+    readonly h: number;
+    readonly ink: string;
+  };
+  /** The gaps' weights (Tyto ADR 0167): over, heading to body, a picture's, and under. */
+  readonly gaps: {
+    readonly edge: number;
+    readonly foot: number;
+    readonly headToBody: number;
+    readonly picture: number;
+  };
 }
 
 /** The answer slide's numbers, the reference's. */
@@ -1036,7 +1083,7 @@ const ANSWER = {
    * logo to the label and 165 from the answer to the explanation, which stays the largest. The
    * gap under the explanation is the one over the label, so the slide's middle is centred.
    */
-  gaps: { edge: 102, headToBody: 165, picture: FRAME_GAP },
+  gaps: { edge: 102, foot: 102, headToBody: 165, picture: FRAME_GAP },
 } as const;
 
 /** The house's middle slides. */
@@ -1101,7 +1148,10 @@ export function answer(
     };
     if (!continued) {
       add('head', {
-        height: look.labelToAnswer + look.answerSize * CAP_HEIGHT,
+        height:
+          look.labelToAnswer +
+          look.answerSize * CAP_HEIGHT +
+          (look.rule === undefined ? 0 : look.rule.gap + look.rule.h),
         place: (capTop) => [
           textAt('rotulo', look.label.words, {
             x: look.x,
@@ -1109,6 +1159,7 @@ export function answer(
             size: look.label.size,
             weight: look.label.weight,
             color: ink(look.label.ink),
+            letterSpacing: (look.label.tracking ?? 0) * look.label.size,
           }),
           textAt('resposta', first === undefined ? '' : plain(first).trim(), {
             x: look.x,
@@ -1116,7 +1167,21 @@ export function answer(
             size: look.answerSize,
             weight: look.answerWeight,
             color: ink(look.answerInk),
+            letterSpacing: (look.answerTracking ?? 0) * look.answerSize,
           }),
+          ...(look.rule === undefined
+            ? []
+            : [
+                rect({
+                  name: 'regua',
+                  size: { w: look.rule.w, h: look.rule.h },
+                  fill: solid(ink(look.rule.ink)),
+                  transform: {
+                    x: look.rule.x,
+                    y: capTop + look.labelToAnswer + look.answerSize * CAP_HEIGHT + look.rule.gap,
+                  },
+                }),
+              ]),
         ],
       });
     }
@@ -1141,13 +1206,13 @@ export function answer(
             part.lines,
             style,
             {
-              x: look.x,
+              x: look.bodyX ?? look.x,
               capTop,
               lineHeight: look.bodyLineHeight,
               width: look.bodyWidth,
               letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
             },
-            shared.bold,
+            runsOptions(shared, ink),
           ),
           main ? tuning.runs : tuning.extraRuns?.[extra],
         );
@@ -1160,7 +1225,7 @@ export function answer(
         linesPiece(count, size, look.bodyLineHeight, (capTop) => [draftAt(capTop)]),
       );
     }
-    weights.push(look.gaps.edge);
+    weights.push(look.gaps.foot);
     return { pieces, weights, ...(text === undefined ? {} : { text }), extras };
   };
 
@@ -1299,7 +1364,7 @@ function slideNumber(
   );
 }
 
-interface ArrowBox {
+export interface ArrowBox {
   readonly x: number;
   readonly y: number;
   readonly w: number;
@@ -1309,7 +1374,7 @@ interface ArrowBox {
 }
 
 /** The arrow pointing to the next slide: a shaft and a triangular head 0.64 of its height long. */
-function arrow(box: ArrowBox, color: string): NodeDraft {
+export function arrow(box: ArrowBox, color: string): NodeDraft {
   const head = Math.round(box.h * 0.64);
   const top = (box.h - box.shaft) / 2;
   const neck = box.w - head;
@@ -1324,6 +1389,20 @@ function arrow(box: ArrowBox, color: string): NodeDraft {
 }
 
 type RunStyle = Parameters<typeof runsOf>[1];
+type RunsOptions = NonNullable<Parameters<typeof runsOf>[2]>;
+
+/** How a look's words take `**bold**` and `{cor:…}`: the bold's weight, the marks' colours. */
+function runsOptions(look: Look, ink: Ink): RunsOptions {
+  const marks = look.marks;
+  if (marks === undefined) return { bold: look.bold };
+  return {
+    bold: look.bold,
+    mark: (key, value) => {
+      const name = key === 'cor' ? marks[value] : undefined;
+      return name === undefined ? undefined : { color: ink(name), weight: look.bold };
+    },
+  };
+}
 
 interface Box {
   readonly x: number;
@@ -1342,7 +1421,7 @@ interface Placed extends Box {
 }
 
 /** A plain text, one run per line, placed by the top of its capitals. */
-function textAt(name: string, words: string, placed: Placed): TextDraft {
+export function textAt(name: string, words: string, placed: Placed): TextDraft {
   const style = { font: FACE, size: placed.size, weight: placed.weight, color: placed.color };
   const [first = '', ...others] = words.split('\n');
   return textRuns(
@@ -1358,11 +1437,11 @@ function richAt(
   written: readonly RichText[],
   style: RunStyle,
   box: Box,
-  bold: number = BOLD,
+  options: RunsOptions = { bold: BOLD },
 ): TextDraft {
   const runs = written.flatMap((line, index) => [
     ...(index > 0 ? [lineBreak()] : []),
-    ...runsOf(line, style, { bold }),
+    ...runsOf(line, style, options),
   ]);
   return textRuns(name, runs.length === 0 ? [run('', style)] : runs, { ...box, size: style.size });
 }
@@ -1417,7 +1496,7 @@ function lineCount(
 }
 
 /** This slide's written lines as rich text, the empty ones dropped. */
-function slideRichLines(context: TemplateContext): RichText[] {
+export function slideRichLines(context: TemplateContext): RichText[] {
   const value = context.slots['lamina']?.value;
   if (value?.kind !== 'rich-text') return [];
   return lines(value.text).filter((line) => plain(line).trim() !== '');
@@ -1429,7 +1508,7 @@ function slideLines(context: TemplateContext): string[] {
 }
 
 /** A rich-text slot's words as plain text, or the template's default when the brief left it out. */
-function slotText(context: TemplateContext, name: string, fallback: string): string {
+export function slotText(context: TemplateContext, name: string, fallback: string): string {
   const value = context.slots[name]?.value;
   if (value?.kind !== 'rich-text') return fallback;
   const words = plain(value.text).trim();

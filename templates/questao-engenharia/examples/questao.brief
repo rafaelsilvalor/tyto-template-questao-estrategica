@@ -1,0 +1,24 @@
+---
+template: questao-engenharia
+formats: [grid]
+---
+// One question in invented copy: an invented exam board, body and statement.
+
+::lamina {capa}
+  (QUINTEX - Prefeitura de
+  Vale Alto - Obras
+  2026)
+
+::lamina
+  Numa ponte fictícia de Vale Alto, a viga que recebe **diretamente** a carga das lajes e a leva aos pilares é chamada de:
+  a) longarina.
+  b) transversina.
+  c) travessa de apoio.
+  d) aparelho de apoio.
+  e) encontro.
+
+::lamina {resposta}
+  Alternativa A
+  A {cor:azul}longarina{/} corre ao longo da ponte e leva a carga das lajes aos pilares; a {cor:vermelho}transversina{/} só a distribui entre elas.
+
+::lamina {fecho}

@@ -1,0 +1,89 @@
+name: questao-engenharia
+version: 0.1.0
+brand: marinho
+description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
+# Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
+# CircularXX is licensed: it crosses only under the manifest's `font:CircularXX`, approved at
+# install. `tests/faces.test.ts` holds this list equal to the faces the examples draw.
+faces:
+  - { family: CircularXX, weight: 300 }
+  - { family: CircularXX, weight: 400 }
+  - { family: CircularXX, weight: 500 }
+  - { family: CircularXX, weight: 700 }
+  - { family: CircularXX, weight: 900 }
+fonts:
+  CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
+formats: [grid]
+# The slots and adjustments are questao-estrategica's, so one brief draws either template by
+# changing its `template:` line.
+slots:
+  # The words over the cover's rule. Optional: without it the template draws its default.
+  titulo: { type: rich-text, max: 40 }
+  # The cover's picture, full bleed under the words. Without it the cover is the deep colour.
+  fundo: { type: image }
+  # The pictures a statement or an answer shows, each where it is written among the slide's
+  # lines (Tyto ADR 0160), in a frame as tall as the picture's own shape makes it (ADR 0158).
+  imagem: { type: image, per: lamina, multiple: true }
+  # The house's seal art, 1080 × 140, glued to the foot of the last slide (TYTO-201).
+  selo: { type: image }
+  # The sign-off's title, its first line. Optional; the rows of icons under it are fixed.
+  fecho: { type: rich-text, max: 160 }
+  # One slide each, in order: `::lamina {capa}` (its lines name the exam), the statement's
+  # unmarked `::lamina` (its lines up to the first `a)` are the statement, every `x) ...` line
+  # one option), `::lamina {resposta}` (its first line the answer, the rest the explanation)
+  # and `::lamina {fecho}`. `**x**` sets words in Bold and `{cor:azul|vermelho|verde|ocre}x{/}`
+  # in Bold and a colour, in the statement and the explanation. `{continua}` goes on from the
+  # slide before. `max` counts slides.
+  lamina: { type: rich-text, repeat: true, min: 1, max: 10 }
+adjustments:
+  capa: { type: flag, applies: [lamina] }
+  resposta: { type: flag, applies: [lamina] }
+  fecho: { type: flag, applies: [lamina] }
+  continua: { type: flag, applies: [lamina] }
+  proporcao:
+    {
+      type: enum,
+      values: [3x1, 5x2, 7x3, 2x1, 16x9, 3x2, 4x3, 1x1],
+      default: 2x1,
+      applies: [lamina],
+    }
+# What a configuration may change (Tyto ADR 0153). Each default is the reference art's, but for
+# the accent, which is the brand kit's when one is installed (Tyto ADR 0155): its default here
+# is a neutral stand-in. `tests/values.test.ts` pins every default to the code's fallback.
+values:
+  # The cover's and the sign-off's colour, where no picture covers it.
+  deep: { type: color, default: '#204e72' }
+  # The cover's picture for every brief of a configuration; a brief's own `fundo` wins over it.
+  cover-background: { type: image }
+  # The cover's title, rule, button and "+", and the sign-off's title.
+  accent: { type: color, default: '#1d9ad5' }
+  # The words, logo, signature and icons on the deep colour.
+  on-deep: { type: color, default: '#ffffff' }
+  # The paper of the statement and the answer.
+  paper: { type: color, default: '#ffffff' }
+  # "Gabarito", the answer, its rule, the arrows and a picture's frame.
+  title-ink: { type: color, default: '#204e72' }
+  # The options' letters.
+  letter-ink: { type: color, default: '#004d74' }
+  # The statement, the options' words, the explanation and the signature on paper.
+  body-ink: { type: color, default: '#4d4d4d' }
+  # The "+" on paper.
+  ornament-ink: { type: color, default: '#cccccc' }
+  # The four `{cor:…}` highlights, set in Bold.
+  highlight-azul: { type: color, default: '#2f628a' }
+  highlight-vermelho: { type: color, default: '#873131' }
+  highlight-verde: { type: color, default: '#39902e' }
+  highlight-ocre: { type: color, default: '#8a662d' }
+  # The cover's exam lines, the statement and the explanation are each set at the largest size
+  # between their floor and ceiling that fits; the ceilings are the reference's sizes.
+  exam-floor: { type: length, default: 56, min: 32, max: 112 }
+  exam-ceiling: { type: length, default: 76, min: 56, max: 160 }
+  statement-floor: { type: length, default: 28, min: 20, max: 48 }
+  statement-ceiling: { type: length, default: 40, min: 28, max: 72 }
+  explanation-floor: { type: length, default: 32, min: 24, max: 76 }
+  explanation-ceiling: { type: length, default: 56, min: 40, max: 112 }
+  # The middle slides' gaps keep the reference's proportions (Tyto ADR 0167); the words are set
+  # at the largest size that keeps every gap at least this fraction of the reference's.
+  gap-floor: { type: number, default: 1, min: 0.25, max: 3 }
+  orphan-shrink: { type: number, default: 0.08, min: 0, max: 0.25 }
+  orphan-tracking: { type: number, default: 0.01, min: 0, max: 0.05 }

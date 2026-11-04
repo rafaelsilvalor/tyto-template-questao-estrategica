@@ -38,8 +38,8 @@ its words as they are.
 
 Since TYTO-618 they reach every text: the cover's title (`titulo`, also in the frontmatter),
 the exam's lines on the cover and the sign-off's title too. Those are Bold or Black already,
-so there `**x**` keeps the text's own weight rather than drawing lighter, and a colour mark is
-what shows. Every rich text also keeps the kit's pairs on one line (`keepTogether`): a currency
+so there `**x**` keeps the text's own weight rather than drawing lighter: a bare `**x**` in
+those three texts shows nothing, and a colour mark, `{cor:azul}x{/}`, is what shows. Every rich text also keeps the kit's pairs on one line (`keepTogether`): a currency
 sign and its amount (`R$ 9,8`), an amount and its scale word (`9,8 mil`), a number and its
 percent (`10 %`).
 

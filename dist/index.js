@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.37.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-BDXPNDLY.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.39.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-WZSLWFYX.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -21491,6 +21491,17 @@ function diagnostic(code, params, options = {}) {
     ...options.hint !== void 0 ? { hint: options.hint } : {}
   };
 }
+var origins = /* @__PURE__ */ new WeakMap();
+function rememberOrigin(run2, range) {
+  origins.set(run2, range);
+}
+function originOf(run2) {
+  return origins.get(run2);
+}
+function isStandaloneOperator(word) {
+  return OPERATOR_WORD.test(word);
+}
+var OPERATOR_WORD = /^[\p{Sm}\u00b7\u2013-]+$/u;
 var unitInterval = external_exports.number().min(0).max(1);
 var finite = external_exports.number().finite();
 var nonNegative = external_exports.number().finite().nonnegative();
@@ -21671,13 +21682,6 @@ function run(text2, options) {
 function lineBreak() {
   return { kind: "break" };
 }
-var origins = /* @__PURE__ */ new WeakMap();
-function rememberOrigin(run2, range) {
-  origins.set(run2, range);
-}
-function originOf(run2) {
-  return origins.get(run2);
-}
 var BOLD = 700;
 var sameColor = (a, b) => a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
 var sameStops = (a, b) => a.length === b.length && a.every((stop2, index) => {
@@ -21759,7 +21763,7 @@ function imageValue(context, name) {
   return typeof value === "object" && "hash" in value ? value : void 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.37.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.39.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -21861,7 +21865,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21898,7 +21902,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.10.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.11.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -21924,7 +21928,45 @@ function block(width, height, draft) {
 function at(x, y, item) {
   return shifted(item.draft, x, y);
 }
+var NO_BREAK_SPACE = "\xA0";
 var NUMBER = String.raw`\d[\d.,]*`;
+var UNITS = [
+  "s",
+  "ms",
+  "min",
+  "h",
+  "m",
+  "km",
+  "cm",
+  "mm",
+  "kg",
+  "g",
+  "mg",
+  "N",
+  "kN",
+  "J",
+  "kJ",
+  "W",
+  "kW",
+  "kWh",
+  "V",
+  "mV",
+  "A",
+  "mA",
+  "Hz",
+  "kHz",
+  "MHz",
+  "Pa",
+  "kPa",
+  "MPa",
+  "K",
+  "\xB0C",
+  "L",
+  "mL",
+  "rad",
+  "mol",
+  "\u03A9"
+];
 var KEEP_TOGETHER_RULES = [
   { name: "currency sign + amount", before: String.raw`(?:R\$|US\$|€)`, after: String.raw`\d` },
   {
@@ -21932,8 +21974,53 @@ var KEEP_TOGETHER_RULES = [
     before: NUMBER,
     after: String.raw`(?:mil|milhão|milhões|bi|bilhão|bilhões)(?!\p{L})`
   },
-  { name: "number + percent", before: NUMBER, after: "%" }
+  { name: "number + percent", before: NUMBER, after: "%" },
+  {
+    name: "number + unit",
+    before: String.raw`[\d⁰¹²³⁴⁵⁶⁷⁸⁹]`,
+    after: String.raw`(?:${UNITS.join("|")})(?!\p{L})`
+  }
 ];
+function keepTogetherText(text2, rules = KEEP_TOGETHER_RULES) {
+  return rules.reduce(
+    (glued, rule) => glued.replace(
+      new RegExp(`(?<=${rule.before})( +)(?=${rule.after})`, "gu"),
+      (spaces) => NO_BREAK_SPACE.repeat(spaces.length)
+    ),
+    text2
+  );
+}
+function keepTogether(value, rules = KEEP_TOGETHER_RULES) {
+  const glued = keepTogetherText(flatten(value), rules);
+  let offset = 0;
+  const rewrite = (inlines) => inlines.map((inline) => {
+    switch (inline.kind) {
+      case "text": {
+        const start = offset;
+        offset += inline.value.length;
+        return { ...inline, value: glued.slice(start, offset) };
+      }
+      case "break":
+        offset += 1;
+        return inline;
+      default:
+        return { ...inline, children: rewrite(inline.children) };
+    }
+  });
+  return rewrite(value);
+}
+function flatten(value) {
+  return value.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return flatten(inline.children);
+    }
+  }).join("");
+}
 var LONGEST_LABEL = 40;
 var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
@@ -22063,11 +22150,10 @@ function highlights(spec) {
 function declaredColor(context, name, fallback) {
   return typeof fallback === "string" ? colorValue(context, name, fallback) : typeof context.values?.[name] === "string" ? context.values[name] : fallback;
 }
-function highlightsFromValues(context, defaults, place) {
-  const weight = numberValue(
-    context,
-    "highlight-weight",
-    defaults.bold?.weight ?? HIGHLIGHT_WEIGHT
+function highlightsFromValues(context, defaults, place, faces) {
+  const weight = nearestWeight(
+    numberValue(context, "highlight-weight", defaults.bold?.weight ?? HIGHLIGHT_WEIGHT),
+    faces
   );
   const houseColor = declaredColor(context, "highlight-color", defaults.bold?.color);
   const color2 = place === void 0 ? houseColor : declaredColor(context, `${place}-highlight-color`, houseColor);
@@ -22085,6 +22171,14 @@ function highlightsFromValues(context, defaults, place) {
     bold: { ...defaults.bold, weight, ...color2 === void 0 ? {} : { color: color2 } },
     ...defaults.marks === void 0 ? {} : { marks }
   });
+}
+function nearestWeight(weight, faces = []) {
+  let nearest;
+  for (const { weight: candidate } of faces) {
+    if (nearest === void 0 || Math.abs(candidate - weight) < Math.abs(nearest - weight) || Math.abs(candidate - weight) === Math.abs(nearest - weight) && candidate > nearest)
+      nearest = candidate;
+  }
+  return nearest ?? weight;
 }
 function richTextOfPlain(source) {
   const inlines = [];
@@ -22218,11 +22312,10 @@ function settle2(request) {
   const found = measured === void 0 ? void 0 : orphanOf(first.text.runs, measured.runs);
   if (found === void 0) return { setting: { size, letterSpacing: 0 }, laid: first.laid };
   const rebroken = measured === void 0 || limits.rebreak === false ? void 0 : rebreak(first.text.runs, measured.runs);
-  if (rebroken !== void 0) {
-    const setting = { size, letterSpacing: 0, runs: rebroken };
-    const tried = layout(setting);
-    if (tried.fits && orphanAt(tried.text) === void 0) return { setting, laid: tried.laid };
-  }
+  const rebrokenSetting = rebroken === void 0 ? void 0 : { size, letterSpacing: 0, runs: rebroken };
+  const rebrokenTry = rebrokenSetting === void 0 ? void 0 : layout(rebrokenSetting);
+  if (rebrokenSetting !== void 0 && rebrokenTry?.fits === true && orphanAt(rebrokenTry.text) === void 0)
+    return { setting: rebrokenSetting, laid: rebrokenTry.laid };
   const smallest = Math.ceil(size * (1 - limits.shrink));
   for (let candidate = size; candidate >= smallest; candidate -= SIZE_STEP) {
     for (const em of trackings(limits.tracking)) {
@@ -22231,6 +22324,11 @@ function settle2(request) {
       const tried = layout(setting);
       if (tried.fits && orphanAt(tried.text) === void 0) return { setting, laid: tried.laid };
     }
+  }
+  if (rebrokenSetting !== void 0 && rebrokenTry?.fits === true) {
+    const remeasured = measure(rebrokenTry.text);
+    if (remeasured !== void 0 && orphanOf(first.text.runs, remeasured.runs) === void 0)
+      return { setting: rebrokenSetting, laid: rebrokenTry.laid };
   }
   return { setting: { size, letterSpacing: 0 }, laid: first.laid, orphan: found };
 }
@@ -22276,46 +22374,45 @@ function firstOrphaned(written, laid) {
 function rebreak(written, laid) {
   const orphaned = firstOrphaned(written, laid);
   if (orphaned === void 0) return void 0;
-  const pieces = (text2) => text2.split(/ +/u).filter((piece) => piece.trim() !== "");
-  const before = orphaned.lines.slice(0, -1);
-  const moved = before.reduce((sum, line) => sum + pieces(line).length, 0) - 1;
+  const before = orphaned.lines.slice(0, -1).join(" ");
+  const moved = pieceStarts(before).length - 1;
   if (moved <= 0) return void 0;
   return withBreakBefore(written, orphaned.paragraph, moved);
 }
+function pieceStarts(text2) {
+  const starts = [];
+  for (let index = 0; index < text2.length; index += 1) {
+    if (text2[index] === " " || index > 0 && text2[index - 1] !== " ") continue;
+    const end = text2.indexOf(" ", index);
+    const word = text2.slice(index, end < 0 ? void 0 : end);
+    if (starts.length === 0 || !isStandaloneOperator(word)) starts.push(index);
+  }
+  return starts;
+}
 function withBreakBefore(runs, paragraph, piece) {
+  const cut2 = pieceStarts(linesOf(runs)[paragraph] ?? "")[piece];
+  if (cut2 === void 0) return [...runs];
   const result = [];
   let current = 0;
-  let seen = -1;
-  let afterSpace = true;
+  let offset = 0;
   let done = false;
   for (const run2 of runs) {
     if (run2.kind === "break") {
       current += 1;
-      afterSpace = true;
       result.push(run2);
       continue;
     }
-    if (done || current !== paragraph) {
+    const start = offset;
+    if (current === paragraph) offset += run2.text.length;
+    if (done || current !== paragraph || cut2 >= offset) {
       result.push(run2);
       continue;
     }
-    let cut2 = -1;
-    for (let index = 0; index < run2.text.length && cut2 < 0; index += 1) {
-      const space = run2.text[index] === " ";
-      if (!space && afterSpace) {
-        seen += 1;
-        if (seen === piece) cut2 = index;
-      }
-      afterSpace = space;
-    }
-    if (cut2 < 0) {
-      result.push(run2);
-      continue;
-    }
-    const head = run2.text.slice(0, cut2).replace(/ +$/u, "");
+    const at2 = cut2 - start;
+    const head = run2.text.slice(0, at2).replace(/ +$/u, "");
     if (head !== "") result.push({ ...run2, text: head });
     else trimLast(result);
-    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(cut2) });
+    result.push({ kind: "break" }, { ...run2, text: run2.text.slice(at2) });
     done = true;
   }
   return result;
@@ -22369,7 +22466,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22412,7 +22509,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22523,6 +22620,7 @@ var REGULAR = 400;
 var MEDIUM = 500;
 var BOLD3 = 700;
 var BLACK = 900;
+var FACE_WEIGHTS = [LIGHT, REGULAR, MEDIUM, BOLD3, BLACK].map((weight) => ({ weight }));
 var MARK_COLORS = {
   azul: "#2f628a",
   vermelho: "#873131",
@@ -22604,7 +22702,7 @@ var build = (context) => {
 };
 function cover(context, ink, last, lift) {
   return [
-    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
       x: 82,
       capTop: 273,
       size: 86.17,
@@ -22657,11 +22755,12 @@ var EXAM = {
   weight: BOLD3
 };
 function examLines(context, color2, lift, exam = EXAM, numbers = NUMBER_DEFAULTS) {
-  const written = slideLines(context);
+  const rich = slideRichLines(context).map(trimmed);
+  const written = rich.map((line) => plain(line));
   const floor = numberValue(context, "exam-floor", numbers["exam-floor"]);
   const ceiling = Math.max(floor, numberValue(context, "exam-ceiling", numbers["exam-ceiling"]));
   const bottom = exam.bottom - lift;
-  const draft = (size) => textAt("prova", written.join("\n"), {
+  const draft = (size) => richTextAt(context, "prova", rich, {
     x: exam.x,
     capTop: exam.capTop,
     size,
@@ -23288,7 +23387,8 @@ function signOff(context, ink) {
   const value = context.slots["fecho"]?.value;
   const parsed = value?.kind === "rich-text" ? lines(value.text).filter((line) => plain(line).trim() !== "") : [];
   const written = slotText(context, "fecho", "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
-  const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
+  const [, ...paragraph] = written;
+  const [title = richTextOfPlain(DEFAULT_SIGN_OFF_TITLE)] = slotRichLines(context, "fecho", "");
   const style2 = {
     font: FACE2,
     size: SIGN_OFF.paragraphSize,
@@ -23304,7 +23404,7 @@ function signOff(context, ink) {
     align: "center"
   };
   return [
-    textAt("fecho-titulo", title, {
+    richTextAt(context, "fecho-titulo", [title], {
       x: 0,
       capTop: SIGN_OFF.titleTop,
       size: SIGN_OFF.titleSize,
@@ -23381,7 +23481,7 @@ function arrow(box, color2) {
   });
 }
 function runsOptions(context, look) {
-  return highlightsFromValues(context, look.highlights).options;
+  return highlightsFromValues(context, look.highlights, void 0, FACE_WEIGHTS).options;
 }
 function textAt(name, words, placed) {
   const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
@@ -23392,10 +23492,17 @@ function textAt(name, words, placed) {
     placed
   );
 }
+function richTextAt(context, name, written, placed, spec = HIGHLIGHTS) {
+  const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
+  const highlights2 = highlightsFromValues(context, spec, void 0, FACE_WEIGHTS);
+  const weight = highlights2.spec.bold?.weight ?? BOLD3;
+  const kept = placed.weight >= weight ? highlights2.with({ bold: { weight: placed.weight } }) : highlights2;
+  return richAt(name, written, style2, placed, kept.options);
+}
 function richAt(name, written, style2, box, options) {
   const runs = written.flatMap((line, index) => [
     ...index > 0 ? [lineBreak()] : [],
-    ...runsOf(line, style2, options)
+    ...runsOf(keepTogether(line), style2, options)
   ]);
   return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
 }
@@ -23432,8 +23539,13 @@ function slideRichLines(context) {
   if (value?.kind !== "rich-text") return [];
   return lines(value.text).filter((line) => plain(line).trim() !== "");
 }
-function slideLines(context) {
-  return slideRichLines(context).map((line) => plain(line).trim());
+function slotRichLines(context, name, fallback) {
+  const value = context.slots[name]?.value;
+  const written = value?.kind === "rich-text" ? value.text : [];
+  const flat = written.every((inline) => inline.kind === "text" || inline.kind === "break");
+  const rich = flat ? richTextOfPlain(plain(written)) : written;
+  const kept = lines(rich).map(trimmed).filter((line) => plain(line) !== "");
+  return kept.length > 0 || fallback === "" ? kept : [richTextOfPlain(fallback)];
 }
 function slotText(context, name, fallback) {
   const value = context.slots[name]?.value;
@@ -23598,7 +23710,7 @@ function cover2(context, ink, accent, lift) {
   return [
     // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
     // Black, the maintainer's call (2026-11-04).
-    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
       x: COVER_TITLE.x,
       capTop: COVER_TITLE.capTop,
       size: COVER_TITLE.size,
@@ -23690,9 +23802,9 @@ function footSignature(brand, capTop, color2) {
 var SIGN_OFF_TITLE = { capTop: 343.5, size: 84.6 };
 function signOffTitle(context, color2) {
   const [written] = slideRichLines(context);
-  const fromSlot = slotText(context, "fecho", "").split("\n")[0]?.trim() ?? "";
-  const words = written !== void 0 ? plain(written).trim() : fromSlot !== "" ? fromSlot : DEFAULT_SIGN_OFF_TITLE2;
-  return textAt("fecho-titulo", words, {
+  const [title] = slotRichLines(context, "fecho", DEFAULT_SIGN_OFF_TITLE2);
+  const words = written === void 0 ? title : trimmed(written);
+  return richTextAt(context, "fecho-titulo", words === void 0 ? [] : [words], {
     x: 0,
     capTop: SIGN_OFF_TITLE.capTop,
     size: SIGN_OFF_TITLE.size,

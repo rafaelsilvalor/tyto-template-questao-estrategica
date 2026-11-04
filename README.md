@@ -36,6 +36,13 @@ the value names every Tyto template shares: `highlight-weight` (700) and
 engineering reference's swatches). A name the template does not list, `{cor:roxo}x{/}`, leaves
 its words as they are.
 
+Since TYTO-618 they reach every text: the cover's title (`titulo`, also in the frontmatter),
+the exam's lines on the cover and the sign-off's title too. Those are Bold or Black already,
+so there `**x**` keeps the text's own weight rather than drawing lighter, and a colour mark is
+what shows. Every rich text also keeps the kit's pairs on one line (`keepTogether`): a currency
+sign and its amount (`R$ 9,8`), an amount and its scale word (`9,8 mil`), a number and its
+percent (`10 %`).
+
 Math is written as plain Unicode: `Δv = a·Δt`, `α ≤ 30°`, `x²`, `10⁻³`. A glyph CircularXX
 lacks is drawn in Tyto's bundled symbol face (Tyto ADR 0168, core 0.37 or later): Noto Sans
 Math, or Source Sans 3 for what Noto Sans Math leaves to text faces. On the maintainer's

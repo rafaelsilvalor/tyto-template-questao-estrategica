@@ -21924,6 +21924,7 @@ function block(width, height, draft) {
 function at(x, y, item) {
   return shifted(item.draft, x, y);
 }
+var NO_BREAK_SPACE = "\xA0";
 var NUMBER = String.raw`\d[\d.,]*`;
 var KEEP_TOGETHER_RULES = [
   { name: "currency sign + amount", before: String.raw`(?:R\$|US\$|€)`, after: String.raw`\d` },
@@ -21934,6 +21935,46 @@ var KEEP_TOGETHER_RULES = [
   },
   { name: "number + percent", before: NUMBER, after: "%" }
 ];
+function keepTogetherText(text2, rules = KEEP_TOGETHER_RULES) {
+  return rules.reduce(
+    (glued, rule) => glued.replace(
+      new RegExp(`(?<=${rule.before})( +)(?=${rule.after})`, "gu"),
+      (spaces) => NO_BREAK_SPACE.repeat(spaces.length)
+    ),
+    text2
+  );
+}
+function keepTogether(value, rules = KEEP_TOGETHER_RULES) {
+  const glued = keepTogetherText(flatten(value), rules);
+  let offset = 0;
+  const rewrite = (inlines) => inlines.map((inline) => {
+    switch (inline.kind) {
+      case "text": {
+        const start = offset;
+        offset += inline.value.length;
+        return { ...inline, value: glued.slice(start, offset) };
+      }
+      case "break":
+        offset += 1;
+        return inline;
+      default:
+        return { ...inline, children: rewrite(inline.children) };
+    }
+  });
+  return rewrite(value);
+}
+function flatten(value) {
+  return value.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return flatten(inline.children);
+    }
+  }).join("");
+}
 var LONGEST_LABEL = 40;
 var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
@@ -22604,7 +22645,7 @@ var build = (context) => {
 };
 function cover(context, ink, last, lift) {
   return [
-    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
       x: 82,
       capTop: 273,
       size: 86.17,
@@ -22657,11 +22698,12 @@ var EXAM = {
   weight: BOLD3
 };
 function examLines(context, color2, lift, exam = EXAM, numbers = NUMBER_DEFAULTS) {
-  const written = slideLines(context);
+  const rich = slideRichLines(context).map(trimmed);
+  const written = rich.map((line) => plain(line));
   const floor = numberValue(context, "exam-floor", numbers["exam-floor"]);
   const ceiling = Math.max(floor, numberValue(context, "exam-ceiling", numbers["exam-ceiling"]));
   const bottom = exam.bottom - lift;
-  const draft = (size) => textAt("prova", written.join("\n"), {
+  const draft = (size) => richTextAt(context, "prova", rich, {
     x: exam.x,
     capTop: exam.capTop,
     size,
@@ -23288,7 +23330,8 @@ function signOff(context, ink) {
   const value = context.slots["fecho"]?.value;
   const parsed = value?.kind === "rich-text" ? lines(value.text).filter((line) => plain(line).trim() !== "") : [];
   const written = slotText(context, "fecho", "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
-  const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
+  const [, ...paragraph] = written;
+  const [title = richTextOfPlain(DEFAULT_SIGN_OFF_TITLE)] = slotRichLines(context, "fecho", "");
   const style2 = {
     font: FACE2,
     size: SIGN_OFF.paragraphSize,
@@ -23304,7 +23347,7 @@ function signOff(context, ink) {
     align: "center"
   };
   return [
-    textAt("fecho-titulo", title, {
+    richTextAt(context, "fecho-titulo", [title], {
       x: 0,
       capTop: SIGN_OFF.titleTop,
       size: SIGN_OFF.titleSize,
@@ -23392,10 +23435,17 @@ function textAt(name, words, placed) {
     placed
   );
 }
+function richTextAt(context, name, written, placed, spec = HIGHLIGHTS) {
+  const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
+  const highlights2 = highlightsFromValues(context, spec);
+  const weight = highlights2.spec.bold?.weight ?? BOLD3;
+  const kept = placed.weight >= weight ? highlights2.with({ bold: { weight: placed.weight } }) : highlights2;
+  return richAt(name, written, style2, placed, kept.options);
+}
 function richAt(name, written, style2, box, options) {
   const runs = written.flatMap((line, index) => [
     ...index > 0 ? [lineBreak()] : [],
-    ...runsOf(line, style2, options)
+    ...runsOf(keepTogether(line), style2, options)
   ]);
   return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
 }
@@ -23432,8 +23482,13 @@ function slideRichLines(context) {
   if (value?.kind !== "rich-text") return [];
   return lines(value.text).filter((line) => plain(line).trim() !== "");
 }
-function slideLines(context) {
-  return slideRichLines(context).map((line) => plain(line).trim());
+function slotRichLines(context, name, fallback) {
+  const value = context.slots[name]?.value;
+  const written = value?.kind === "rich-text" ? value.text : [];
+  const flat = written.every((inline) => inline.kind === "text" || inline.kind === "break");
+  const rich = flat ? richTextOfPlain(plain(written)) : written;
+  const kept = lines(rich).map(trimmed).filter((line) => plain(line) !== "");
+  return kept.length > 0 || fallback === "" ? kept : [richTextOfPlain(fallback)];
 }
 function slotText(context, name, fallback) {
   const value = context.slots[name]?.value;
@@ -23598,7 +23653,7 @@ function cover2(context, ink, accent, lift) {
   return [
     // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
     // Black, the maintainer's call (2026-11-04).
-    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
       x: COVER_TITLE.x,
       capTop: COVER_TITLE.capTop,
       size: COVER_TITLE.size,
@@ -23690,9 +23745,9 @@ function footSignature(brand, capTop, color2) {
 var SIGN_OFF_TITLE = { capTop: 343.5, size: 84.6 };
 function signOffTitle(context, color2) {
   const [written] = slideRichLines(context);
-  const fromSlot = slotText(context, "fecho", "").split("\n")[0]?.trim() ?? "";
-  const words = written !== void 0 ? plain(written).trim() : fromSlot !== "" ? fromSlot : DEFAULT_SIGN_OFF_TITLE2;
-  return textAt("fecho-titulo", words, {
+  const [title] = slotRichLines(context, "fecho", DEFAULT_SIGN_OFF_TITLE2);
+  const words = written === void 0 ? title : trimmed(written);
+  return richTextAt(context, "fecho-titulo", words === void 0 ? [] : [words], {
     x: 0,
     capTop: SIGN_OFF_TITLE.capTop,
     size: SIGN_OFF_TITLE.size,

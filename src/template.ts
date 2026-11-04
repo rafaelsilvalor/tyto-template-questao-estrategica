@@ -39,6 +39,7 @@ import {
   at,
   highlightsFromValues,
   imageHeight,
+  keepTogether,
   labelOf,
   lines,
   plain,
@@ -263,7 +264,7 @@ export const build: TemplateBuild = (context: TemplateContext) => {
 
 function cover(context: TemplateContext, ink: Ink, last: boolean, lift: number): NodeDraft[] {
   return [
-    textAt('titulo', slotText(context, 'titulo', DEFAULT_TITLE), {
+    richTextAt(context, 'titulo', slotRichLines(context, 'titulo', DEFAULT_TITLE), {
       x: 82,
       capTop: 273,
       size: 86.17,
@@ -348,12 +349,13 @@ export function examLines(
   exam: ExamLook = EXAM,
   numbers: Readonly<Record<'exam-floor' | 'exam-ceiling', number>> = NUMBER_DEFAULTS,
 ): NodeDraft {
-  const written = slideLines(context);
+  const rich = slideRichLines(context).map(trimmed);
+  const written = rich.map((line) => plain(line));
   const floor = numberValue(context, 'exam-floor', numbers['exam-floor']);
   const ceiling = Math.max(floor, numberValue(context, 'exam-ceiling', numbers['exam-ceiling']));
   const bottom = exam.bottom - lift;
   const draft = (size: number) =>
-    textAt('prova', written.join('\n'), {
+    richTextAt(context, 'prova', rich, {
       x: exam.x,
       capTop: exam.capTop,
       size,
@@ -527,7 +529,7 @@ export function optionsOf(lines: readonly (RichText | string)[]): Option[] {
 }
 
 /** A rich line without the spaces at either end, its highlights kept. */
-function trimmed(line: RichText): RichText {
+export function trimmed(line: RichText): RichText {
   const edge = (inlines: RichText, side: 'start' | 'end'): RichText => {
     const index = side === 'start' ? 0 : inlines.length - 1;
     const inline = inlines[index];
@@ -1406,7 +1408,8 @@ function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '');
-  const [title = DEFAULT_SIGN_OFF_TITLE, ...paragraph] = written;
+  const [, ...paragraph] = written;
+  const [title = richTextOfPlain(DEFAULT_SIGN_OFF_TITLE)] = slotRichLines(context, 'fecho', '');
   const style = {
     font: FACE,
     size: SIGN_OFF.paragraphSize,
@@ -1425,7 +1428,7 @@ function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
     align: 'center' as const,
   };
   return [
-    textAt('fecho-titulo', title, {
+    richTextAt(context, 'fecho-titulo', [title], {
       x: 0,
       capTop: SIGN_OFF.titleTop,
       size: SIGN_OFF.titleSize,
@@ -1563,6 +1566,30 @@ export function textAt(name: string, words: string, placed: Placed): TextDraft {
   );
 }
 
+/**
+ * Rich lines placed as {@link textAt} places plain ones, taking `**…**` and the colour marks
+ * under the template's highlights (TYTO-618): the cover's title and exam lines and the
+ * sign-off's title, which were plain before.
+ *
+ * Those texts are Bold or Black already, and the highlight's Bold would draw a Black title
+ * lighter: in a text at least as heavy, `**…**` and the marks keep the text's own weight, and a
+ * colour mark is what shows.
+ */
+export function richTextAt(
+  context: TemplateContext,
+  name: string,
+  written: readonly RichText[],
+  placed: Placed,
+  spec: HighlightSpec = HIGHLIGHTS,
+): TextDraft {
+  const style = { font: FACE, size: placed.size, weight: placed.weight, color: placed.color };
+  const highlights = highlightsFromValues(context, spec);
+  const weight = highlights.spec.bold?.weight ?? BOLD;
+  const kept =
+    placed.weight >= weight ? highlights.with({ bold: { weight: placed.weight } }) : highlights;
+  return richAt(name, written, style, placed, kept.options);
+}
+
 /** Rich lines (bold kept as Bold), one after the other, placed by the top of their capitals. */
 function richAt(
   name: string,
@@ -1571,9 +1598,11 @@ function richAt(
   box: Box,
   options: RunsOptions,
 ): TextDraft {
+  // Every rich text keeps its pairs together (a currency sign and its amount, a number and its
+  // percent) with the kit's rules: the spaces between them become no-break spaces.
   const runs = written.flatMap((line, index) => [
     ...(index > 0 ? [lineBreak()] : []),
-    ...runsOf(line, style, options),
+    ...runsOf(keepTogether(line), style, options),
   ]);
   return textRuns(name, runs.length === 0 ? [run('', style)] : runs, { ...box, size: style.size });
 }
@@ -1634,9 +1663,25 @@ export function slideRichLines(context: TemplateContext): RichText[] {
   return lines(value.text).filter((line) => plain(line).trim() !== '');
 }
 
-/** This slide's written lines, trimmed, the empty ones dropped. */
-function slideLines(context: TemplateContext): string[] {
-  return slideRichLines(context).map((line) => plain(line).trim());
+/**
+ * A rich-text slot's lines, trimmed, the empty ones dropped; the template's default, as one
+ * line, when the brief left it out. A directive arrives parsed, its `**…**` and marks already
+ * read; the frontmatter hands its words over as written, so there they are read here with the
+ * kit's `richTextOfPlain`.
+ */
+export function slotRichLines(
+  context: TemplateContext,
+  name: string,
+  fallback: string,
+): RichText[] {
+  const value = context.slots[name]?.value;
+  const written = value?.kind === 'rich-text' ? value.text : [];
+  const flat = written.every((inline) => inline.kind === 'text' || inline.kind === 'break');
+  const rich = flat ? richTextOfPlain(plain(written)) : written;
+  const kept = lines(rich)
+    .map(trimmed)
+    .filter((line) => plain(line) !== '');
+  return kept.length > 0 || fallback === '' ? kept : [richTextOfPlain(fallback)];
 }
 
 /** A rich-text slot's words as plain text, or the template's default when the brief left it out. */

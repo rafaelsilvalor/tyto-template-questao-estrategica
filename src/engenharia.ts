@@ -20,7 +20,7 @@
 
 import { colorValue, imageValue, frame, image, rect, solid, vector } from '@tyto/core/template';
 import { accentOf, drawLogo, oneInk, sealOf, signatureOf } from '@tyto/house-style';
-import { at, plain, sealed } from '@tyto/template-kit';
+import { at, sealed } from '@tyto/template-kit';
 
 import {
   BLACK,
@@ -36,11 +36,13 @@ import {
   answer,
   arrow,
   examLines,
+  richTextAt,
   roleOf,
   slideRichLines,
-  slotText,
+  slotRichLines,
   statement,
   textAt,
+  trimmed,
 } from './template.js';
 
 import type { ArrowBox, ExamLook, Ink, Look } from './template.js';
@@ -264,7 +266,7 @@ function cover(context: TemplateContext, ink: Ink, accent: string, lift: number)
   return [
     // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
     // Black, the maintainer's call (2026-11-04).
-    textAt('titulo', slotText(context, 'titulo', DEFAULT_TITLE), {
+    richTextAt(context, 'titulo', slotRichLines(context, 'titulo', DEFAULT_TITLE), {
       x: COVER_TITLE.x,
       capTop: COVER_TITLE.capTop,
       size: COVER_TITLE.size,
@@ -382,14 +384,9 @@ const SIGN_OFF_TITLE = { capTop: 343.5, size: 84.6 } as const;
 /** The sign-off's title: its slide's first line, else `fecho`'s, else the default. */
 function signOffTitle(context: TemplateContext, color: string): TextDraft {
   const [written] = slideRichLines(context);
-  const fromSlot = slotText(context, 'fecho', '').split('\n')[0]?.trim() ?? '';
-  const words =
-    written !== undefined
-      ? plain(written).trim()
-      : fromSlot !== ''
-        ? fromSlot
-        : DEFAULT_SIGN_OFF_TITLE;
-  return textAt('fecho-titulo', words, {
+  const [title] = slotRichLines(context, 'fecho', DEFAULT_SIGN_OFF_TITLE);
+  const words = written === undefined ? title : trimmed(written);
+  return richTextAt(context, 'fecho-titulo', words === undefined ? [] : [words], {
     x: 0,
     capTop: SIGN_OFF_TITLE.capTop,
     size: SIGN_OFF_TITLE.size,

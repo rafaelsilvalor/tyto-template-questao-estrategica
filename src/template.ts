@@ -37,11 +37,14 @@ import { drawLogo, oneInk, sealOf, signatureOf } from '@tyto/house-style';
 import {
   ORPHAN_LIMITS,
   at,
+  highlightsFromValues,
   imageHeight,
+  labelOf,
   lines,
   plain,
   reportOrphan,
   reportOverflow,
+  richTextOfPlain,
   sealed,
   settle,
   spaceByWeight,
@@ -56,6 +59,7 @@ import type {
   TextRun,
 } from '@tyto/core';
 import type { NodeDraft, TextDraft } from '@tyto/core/template';
+import type { HighlightSpec } from '@tyto/template-kit';
 
 /* -------------------------------------------------------------------------- the words -- */
 
@@ -129,6 +133,42 @@ export const MEDIUM = 500;
 export const BOLD = 700;
 /** The reference sets "Curtiu?" in ExtraBlack, which Tyto has no face for: Black, the maintainer's call. */
 export const BLACK = 900;
+
+/** The four `{cor:…}` swatches of the engineering reference, public defaults in both looks. */
+export const MARK_COLORS = {
+  azul: '#2f628a',
+  vermelho: '#873131',
+  verde: '#39902e',
+  ocre: '#8a662d',
+} as const;
+
+/**
+ * What `**…**` and `{cor:azul|vermelho|verde|ocre}…{/}` look like (Tyto TYTO-554): the
+ * highlight at Bold in the words' own colour, and each colour mark at the highlight's weight in
+ * its swatch. A configuration changes them through the house's value names (`HIGHLIGHT_DEFAULTS`).
+ */
+export const HIGHLIGHTS: HighlightSpec = {
+  bold: { weight: BOLD },
+  marks: {
+    cor: {
+      like: 'bold',
+      values: Object.fromEntries(
+        Object.entries(MARK_COLORS).map(([name, color]) => [name, { color }]),
+      ),
+    },
+  },
+};
+
+/**
+ * The highlight's declared values, under the names every Tyto template shares
+ * (`docs/template-conventions.md`), each default the constant `HIGHLIGHTS` falls back to.
+ */
+export const HIGHLIGHT_DEFAULTS = {
+  'highlight-weight': BOLD,
+  ...Object.fromEntries(
+    Object.entries(MARK_COLORS).map(([name, color]) => [`mark-cor-${name}`, color]),
+  ),
+} as Readonly<Record<string, number | string>>;
 
 /**
  * CircularXX's vertical metrics, in em, from its `OS/2` table and the same in every weight: a
@@ -446,29 +486,63 @@ const OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
  */
 const LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
 
-/** One option: its letter and its words, a line break wherever the brief broke them. */
+/**
+ * One option: its letter, and its words as the brief wrote them, one rich line per line the
+ * brief broke them on, so `**…**` and `{cor:…}` reach an option as they reach the statement.
+ */
 interface Option {
   readonly letter: string;
-  readonly words: string;
+  readonly words: readonly RichText[];
 }
 
 /**
  * The options, from the first `X)` line on. A line that starts no option continues the one
  * above on a line of its own (TYTO-520): a `\` or a new line inside an option is a break the
- * author asked for, not an option with no letter and no words.
+ * author asked for, not an option with no letter and no words. The letter is read on the
+ * line's plain text and cut off its rich text with the kit's `labelOf`, so a highlight inside
+ * the words is kept.
  */
-export function optionsOf(lines: readonly string[]): Option[] {
+export function optionsOf(lines: readonly (RichText | string)[]): Option[] {
   const options: Option[] = [];
-  for (const line of lines) {
-    const [, letter, words = ''] = OPTION.exec(line) ?? LATER_OPTION.exec(line) ?? [];
+  for (const written of lines) {
+    const line = typeof written === 'string' ? richTextOfPlain(written) : written;
+    const text = plain(line);
+    const first = OPTION.exec(text);
+    const [, letter] = first ?? LATER_OPTION.exec(text) ?? [];
     const last = options.at(-1);
+    // The regexes put the letter's `)` or `.` first in the line, so it is the first separator.
+    const separator = first === null ? '.' : ')';
+    const words = trimmed(
+      letter === undefined
+        ? line
+        : labelOf(line, { separator, longestLabel: Infinity, notLabels: [] }).text,
+    );
     if (letter !== undefined || last === undefined) {
-      options.push({ letter: letter ?? '', words: letter === undefined ? line.trim() : words });
+      options.push({ letter: letter ?? '', words: [words] });
     } else {
-      options[options.length - 1] = { letter: last.letter, words: `${last.words}\n${line.trim()}` };
+      options[options.length - 1] = { letter: last.letter, words: [...last.words, words] };
     }
   }
   return options;
+}
+
+/** A rich line without the spaces at either end, its highlights kept. */
+function trimmed(line: RichText): RichText {
+  const edge = (inlines: RichText, side: 'start' | 'end'): RichText => {
+    const index = side === 'start' ? 0 : inlines.length - 1;
+    const inline = inlines[index];
+    if (inline === undefined || inline.kind === 'break') return inlines;
+    const replaced =
+      inline.kind === 'text'
+        ? { ...inline, value: side === 'start' ? inline.value.trimStart() : inline.value.trimEnd() }
+        : { ...inline, children: edge(inline.children, side) };
+    const copy = [...inlines];
+    // A text the trim emptied goes, so no empty run is drawn at the line's edge.
+    if (replaced.kind === 'text' && replaced.value === '') copy.splice(index, 1);
+    else copy[index] = replaced;
+    return copy;
+  };
+  return edge(edge(line, 'start'), 'end');
 }
 
 type StatementBlock = 'label' | 'body' | 'picture' | 'options';
@@ -546,7 +620,7 @@ export function statement(
                 width: look.bodyWidth,
                 letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
               },
-              runsOptions(shared, ink),
+              runsOptions(context, shared),
             ),
             main ? tuning.runs : tuning.extraRuns?.[extra],
           );
@@ -563,7 +637,17 @@ export function statement(
         optionCount += segment.options.length;
         add(
           'options',
-          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink, look),
+          optionsPiece(
+            context,
+            segment.options,
+            first,
+            optionSize,
+            tuning,
+            extras,
+            ink,
+            look,
+            runsOptions(context, shared),
+          ),
         );
       }
     }
@@ -587,29 +671,39 @@ function optionsPiece(
   extras: Extra[],
   ink: Ink,
   look: StatementLook,
+  marked: RunsOptions,
 ): Piece {
   const scale = optionSize / look.optionSize;
   const textX = look.optionX + (look.optionTextX - look.optionX) * scale;
   const width = look.optionWidth - (textX - look.optionTextX);
   const offset = extras.length;
+  const style = {
+    font: FACE,
+    size: optionSize,
+    weight: look.optionWeight,
+    color: ink(look.bodyInk),
+  };
   const wordsAt = (index: number, capTop: number): TextDraft =>
     redrawn(
-      textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? '', {
-        x: textX,
-        capTop,
-        size: optionSize,
-        weight: look.optionWeight,
-        color: ink(look.bodyInk),
-        lineHeight: look.optionLineHeight,
-        width,
-        letterSpacing: tuning.extras[offset + index] ?? 0,
-      }),
+      richAt(
+        `alternativa-${first + index + 1}`,
+        options[index]?.words ?? [],
+        style,
+        {
+          x: textX,
+          capTop,
+          lineHeight: look.optionLineHeight,
+          width,
+          letterSpacing: tuning.extras[offset + index] ?? 0,
+        },
+        marked,
+      ),
       tuning.extraRuns?.[offset + index],
     );
   const counts = options.map((option, index) => {
     const words = wordsAt(index, 0);
     extras.push({ text: words, size: optionSize });
-    return lineCount(context, words, option.words.split('\n'), optionSize, width);
+    return lineCount(context, words, option.words, optionSize, width);
   });
   const leading = optionSize * look.optionLineHeight;
   /** Each option's capitals' top, from the first's. */
@@ -666,7 +760,7 @@ function statementSegments(parts: readonly Part[]): Segment[] {
       optionsBegun = true;
       segments.push({
         kind: 'options',
-        options: optionsOf(part.lines.slice(firstOption).map(plain)),
+        options: optionsOf(part.lines.slice(firstOption)),
       });
     }
   }
@@ -718,13 +812,8 @@ export interface Look {
   /** The middle slides' room: its top, and its foot before the seal lifts it. */
   readonly room: { readonly top: number; readonly bottom: number };
   readonly numbers: StackNumbers;
-  /** The weight `**bold**` takes. */
-  readonly bold: number;
-  /**
-   * `{cor:<name>}x{/}`: each name the brief may write, to a colour's declared value name. The
-   * mark also takes the bold's weight. None, and the mark leaves its words as they are.
-   */
-  readonly marks?: Readonly<Record<string, string>>;
+  /** What `**…**` and the `{cor:…}` marks look like, before the configuration's values. */
+  readonly highlights: HighlightSpec;
   /** A picture's frame and the paper behind the picture, by colour name. */
   readonly frameInk: string;
   readonly frameFill: string;
@@ -1145,7 +1234,7 @@ const HOUSE: Look = {
   answer: ANSWER,
   room: { top: ROOM_TOP, bottom: FOOTER_TOP },
   numbers: NUMBER_DEFAULTS,
-  bold: BOLD,
+  highlights: HIGHLIGHTS,
   frameInk: 'title-ink',
   frameFill: 'paper',
 };
@@ -1271,7 +1360,7 @@ export function answer(
               width: look.bodyWidth,
               letterSpacing: main ? tuning.letterSpacing : (tuning.extras[extra] ?? 0),
             },
-            runsOptions(shared, ink),
+            runsOptions(context, shared),
           ),
           main ? tuning.runs : tuning.extraRuns?.[extra],
         );
@@ -1345,23 +1434,15 @@ function signOff(context: TemplateContext, ink: Ink): NodeDraft[] {
       width: SLIDE_WIDTH,
       align: 'center',
     }),
-    parsed.length > 1
-      ? richAt('fecho-texto', parsed.slice(1), style, box)
-      : textRuns('fecho-texto', boldRuns(words, style), { ...box, size: style.size }),
+    richAt(
+      'fecho-texto',
+      parsed.length > 1 ? parsed.slice(1) : words.split('\n').map(richTextOfPlain),
+      style,
+      box,
+      runsOptions(context, HOUSE),
+    ),
     ...likeBar(ink),
   ];
-}
-
-/** Plain words into runs: `**…**` set Bold, a line break kept as one. */
-function boldRuns(words: string, style: RunStyle): TextRun[] {
-  return words.split('\n').flatMap((line, index) => [
-    ...(index > 0 ? [lineBreak()] : []),
-    ...line
-      .split(/\*\*/)
-      .map((piece, part) => ({ piece, bold: part % 2 === 1 }))
-      .filter(({ piece }) => piece !== '')
-      .map(({ piece, bold }) => run(piece, bold ? { ...style, weight: BOLD } : style)),
-  ]);
 }
 
 /** The bar of like, comment, share and save under the sign-off, the reference's. */
@@ -1450,17 +1531,9 @@ export function arrow(box: ArrowBox, color: string): NodeDraft {
 type RunStyle = Parameters<typeof runsOf>[1];
 type RunsOptions = NonNullable<Parameters<typeof runsOf>[2]>;
 
-/** How a look's words take `**bold**` and `{cor:…}`: the bold's weight, the marks' colours. */
-function runsOptions(look: Look, ink: Ink): RunsOptions {
-  const marks = look.marks;
-  if (marks === undefined) return { bold: look.bold };
-  return {
-    bold: look.bold,
-    mark: (key, value) => {
-      const name = key === 'cor' ? marks[value] : undefined;
-      return name === undefined ? undefined : { color: ink(name), weight: look.bold };
-    },
-  };
+/** How a look's words take `**…**` and `{cor:…}`: its highlights under the configuration's. */
+function runsOptions(context: TemplateContext, look: Look): RunsOptions {
+  return highlightsFromValues(context, look.highlights).options;
 }
 
 interface Box {
@@ -1496,7 +1569,7 @@ function richAt(
   written: readonly RichText[],
   style: RunStyle,
   box: Box,
-  options: RunsOptions = { bold: BOLD },
+  options: RunsOptions,
 ): TextDraft {
   const runs = written.flatMap((line, index) => [
     ...(index > 0 ? [lineBreak()] : []),

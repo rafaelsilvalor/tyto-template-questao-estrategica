@@ -4,6 +4,7 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
+import { build as engenharia } from '../src/engenharia.js';
 import { build } from '../src/template.js';
 
 /**
@@ -37,6 +38,33 @@ describe('the example questao', () => {
     expect(result.value.frames).toHaveLength(4);
     for (const [index, slide] of result.value.frames.entries()) {
       await expect(slide.html).toMatchFileSnapshot(`./__snapshots__/questao-${index + 1}.html`);
+    }
+  });
+});
+
+/**
+ * The formula example of each template (TYTO-607): highlights in the statement, an option and
+ * the explanation, and symbols written as plain Unicode. Nothing is measured here, so no glyph
+ * moves to the symbol chain; `faces.test.ts` measures that.
+ */
+describe.each([
+  ['questao-estrategica', build, 'formula'],
+  ['questao-engenharia', engenharia, 'engenharia-formula'],
+] as const)('the formula example of %s', (name, draw, snapshot) => {
+  const parsed = parseManifest(read(`../templates/${name}/manifest.yaml`), 'manifest.yaml');
+  if (!parsed.ok) throw new Error(parsed.error.map((item) => item.message).join('\n'));
+
+  it('compiles to four grid slides, the HTML the template drew last time', async () => {
+    const result = await compileTemplate({
+      brief: read(`../templates/${name}/examples/formula.brief`),
+      template: defineTemplate(parsed.value, draw),
+      formats,
+    });
+    if (!result.ok) throw new Error(result.error.map((item) => item.message).join('\n'));
+
+    expect(result.value.frames).toHaveLength(4);
+    for (const [index, slide] of result.value.frames.entries()) {
+      await expect(slide.html).toMatchFileSnapshot(`./__snapshots__/${snapshot}-${index + 1}.html`);
     }
   });
 });

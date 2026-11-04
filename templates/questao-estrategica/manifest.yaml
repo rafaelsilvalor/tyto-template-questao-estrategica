@@ -1,16 +1,22 @@
 name: questao-estrategica
-version: 0.5.0
+version: 0.6.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
 # CircularXX is licensed: it crosses only under the manifest's `font:CircularXX`, approved at
 # install. `tests/faces.test.ts` holds this list equal to the faces the examples draw.
+# The last three are Tyto's bundled symbol chain (Tyto ADR 0168): a glyph CircularXX lacks (α, β,
+# ⁻) is drawn in Noto Sans Math, or else in Source Sans 3 at 400 or 700, the nearer the run's
+# weight. Listed, the template's own measure agrees with the host's on a line holding a formula.
 faces:
   - { family: CircularXX, weight: 300 }
   - { family: CircularXX, weight: 400 }
   - { family: CircularXX, weight: 500 }
   - { family: CircularXX, weight: 700 }
   - { family: CircularXX, weight: 900 }
+  - { family: Noto Sans Math, weight: 400 }
+  - { family: Source Sans 3, weight: 400 }
+  - { family: Source Sans 3, weight: 700 }
 fonts:
   CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
 formats: [grid]
@@ -79,6 +85,14 @@ values:
   # The like bar under the sign-off, and its icons.
   bar-fill: { type: color, default: '#e2e2e2' }
   bar-ink: { type: color, default: '#4c4c4c' }
+  # The highlights, under the value names every Tyto template shares (Tyto
+  # docs/template-conventions.md): the weight of `**…**` and of a `{cor:…}` mark, and each mark's
+  # colour, the engineering reference's four swatches.
+  highlight-weight: { type: number, default: 700, min: 100, max: 900 }
+  mark-cor-azul: { type: color, default: '#2f628a' }
+  mark-cor-vermelho: { type: color, default: '#873131' }
+  mark-cor-verde: { type: color, default: '#39902e' }
+  mark-cor-ocre: { type: color, default: '#8a662d' }
   # The cover's exam lines are set at the largest size between these that keeps them in their
   # room, so a short title grows and a long one shrinks. Below the floor it overflows, reported.
   exam-floor: { type: length, default: 56, min: 32, max: 112 }

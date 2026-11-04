@@ -1,0 +1,25 @@
+---
+template: questao-engenharia
+formats: [grid]
+---
+// A question with a formula, in invented copy: math is written as plain Unicode, and a glyph
+// CircularXX lacks is drawn in Tyto's bundled symbol face (Tyto ADR 0168).
+
+::lamina {capa}
+  (QUINTEX - Prefeitura de
+  Vale Alto - Obras
+  2026)
+
+::lamina
+  Um carrinho fictício parte do repouso com aceleração constante a = 2 m/s². Sabendo que **Δv = a·Δt** e que o ângulo da rampa é {cor:azul}α ≤ 30°{/}, qual é a variação de velocidade em Δt = 3 s, com erro de 10⁻² m/s?
+  a) Δv = 6 m/s, pois x² não entra no cálculo.
+  b) Δv = 5 m/s.
+  c) Δv ≤ 1 m/s.
+  d) {cor:vermelho}Δv = a²·Δt{/}.
+  e) Δv = 0, porque **β = 10⁻³**.
+
+::lamina {resposta}
+  Alternativa A
+  Com a = 2 m/s² e Δt = 3 s, **Δv = a·Δt = 6 m/s**; o ângulo {cor:verde}α ≤ 30°{/} não muda o resultado.
+
+::lamina {fecho}

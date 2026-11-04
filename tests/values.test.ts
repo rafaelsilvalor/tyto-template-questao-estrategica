@@ -4,7 +4,7 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { COLOR_DEFAULTS, NUMBER_DEFAULTS } from '../src/template.js';
+import { COLOR_DEFAULTS, HIGHLIGHT_DEFAULTS, NUMBER_DEFAULTS } from '../src/template.js';
 import { build } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
@@ -25,7 +25,11 @@ if (!manifest.ok) throw new Error(manifest.error.map((item) => item.message).joi
 const template = defineTemplate(manifest.value, build);
 const formats = formatCatalogue({ grid: { w: 1080, h: 1350, kind: 'grid' } });
 
-const FALLBACKS: Record<string, unknown> = { ...COLOR_DEFAULTS, ...NUMBER_DEFAULTS };
+const FALLBACKS: Record<string, unknown> = {
+  ...COLOR_DEFAULTS,
+  ...NUMBER_DEFAULTS,
+  ...HIGHLIGHT_DEFAULTS,
+};
 
 const html = async (values?: SuppliedValues): Promise<string> => {
   const result = await compileTemplate({

@@ -27,6 +27,7 @@ import {
   BOLD,
   DEFAULT_TITLE,
   FRAME_GAP,
+  HIGHLIGHTS,
   LIGHT,
   MEDIUM,
   NUMBER_DEFAULTS as HOUSE_NUMBERS,
@@ -78,11 +79,6 @@ export const COLOR_DEFAULTS = {
   'body-ink': '#4d4d4d',
   /** The "+" on paper. */
   'ornament-ink': '#cccccc',
-  /** The four `{cor:…}` highlights, at the bold's weight. */
-  'highlight-azul': '#2f628a',
-  'highlight-vermelho': '#873131',
-  'highlight-verde': '#39902e',
-  'highlight-ocre': '#8a662d',
 } as const;
 
 type ColorName = keyof typeof COLOR_DEFAULTS;
@@ -101,14 +97,6 @@ export const NUMBER_DEFAULTS = {
   'gap-floor': HOUSE_NUMBERS['gap-floor'],
   'orphan-shrink': HOUSE_NUMBERS['orphan-shrink'],
   'orphan-tracking': HOUSE_NUMBERS['orphan-tracking'],
-} as const;
-
-/** The `{cor:<name>}` names a brief may write, to their colours' value names. */
-const MARKS = {
-  azul: 'highlight-azul',
-  vermelho: 'highlight-vermelho',
-  verde: 'highlight-verde',
-  ocre: 'highlight-ocre',
 } as const;
 
 /* ------------------------------------------------------------------- the middle slides -- */
@@ -133,8 +121,7 @@ const gap = (pixels: number): number => pixels * SLACK;
 export const LOOK: Look = {
   room: { top: 134, bottom: FOOTER_TOP },
   numbers: NUMBER_DEFAULTS,
-  bold: BOLD,
-  marks: MARKS,
+  highlights: HIGHLIGHTS,
   frameInk: 'title-ink',
   frameFill: 'paper',
   statement: {

@@ -1,16 +1,22 @@
 name: questao-engenharia
-version: 0.1.0
+version: 0.2.0
 brand: engenharia
 description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
 # CircularXX is licensed: it crosses only under the manifest's `font:CircularXX`, approved at
 # install. `tests/faces.test.ts` holds this list equal to the faces the examples draw.
+# The last three are Tyto's bundled symbol chain (Tyto ADR 0168): a glyph CircularXX lacks (α, β,
+# ⁻) is drawn in Noto Sans Math, or else in Source Sans 3 at 400 or 700, the nearer the run's
+# weight. Listed, the template's own measure agrees with the host's on a line holding a formula.
 faces:
   - { family: CircularXX, weight: 300 }
   - { family: CircularXX, weight: 400 }
   - { family: CircularXX, weight: 500 }
   - { family: CircularXX, weight: 700 }
   - { family: CircularXX, weight: 900 }
+  - { family: Noto Sans Math, weight: 400 }
+  - { family: Source Sans 3, weight: 400 }
+  - { family: Source Sans 3, weight: 700 }
 fonts:
   CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
 formats: [grid]
@@ -72,11 +78,14 @@ values:
   body-ink: { type: color, default: '#4d4d4d' }
   # The "+" on paper.
   ornament-ink: { type: color, default: '#cccccc' }
-  # The four `{cor:…}` highlights, set in Bold.
-  highlight-azul: { type: color, default: '#2f628a' }
-  highlight-vermelho: { type: color, default: '#873131' }
-  highlight-verde: { type: color, default: '#39902e' }
-  highlight-ocre: { type: color, default: '#8a662d' }
+  # The highlights, under the value names every Tyto template shares (Tyto
+  # docs/template-conventions.md): the weight of `**…**` and of a `{cor:…}` mark, and each mark's
+  # colour, the engineering reference's four swatches.
+  highlight-weight: { type: number, default: 700, min: 100, max: 900 }
+  mark-cor-azul: { type: color, default: '#2f628a' }
+  mark-cor-vermelho: { type: color, default: '#873131' }
+  mark-cor-verde: { type: color, default: '#39902e' }
+  mark-cor-ocre: { type: color, default: '#8a662d' }
   # The cover's exam lines, the statement and the explanation are each set at the largest size
   # between their floor and ceiling that fits; the ceilings are the reference's sizes.
   exam-floor: { type: length, default: 56, min: 32, max: 112 }

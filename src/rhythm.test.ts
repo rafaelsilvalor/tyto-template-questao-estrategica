@@ -199,14 +199,24 @@ describe('orphans past the limits', () => {
     const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${PAST_LIMITS}\n`);
     const frame = result.value.scene.artworks[0]!.frames[0]!;
 
-    expect(lastLineWords(text(frame, 'explicacao'))).toEqual(['decisões.']);
+    expect(lastLineWords(text(frame, 'explicacao'))).toEqual(['fim.']);
     expect(
       result.diagnostics
         .filter((item) => item.code === 'W_TEMPLATE_ORPHAN')
         .map((item) => item.message),
     ).toEqual([
-      "Artwork 'lamina-1' ends a paragraph on the single word 'decisões.' in format 'grid': no size or letter spacing within the template's limits moved another word down to it.",
+      "Artwork 'lamina-1' ends a paragraph on the single word 'fim.' in format 'grid': no size or letter spacing within the template's limits moved another word down to it.",
     ]);
+  });
+
+  it('clears the sentence that once needed a lone line above it, by a last-resort rebreak', async () => {
+    // Before Tyto TYTO-616 no rebreak cleared it: moving "das" down would leave the line
+    // above on its own. The kit now rebreaks there as a last resort.
+    const result = await compiled(`::lamina {resposta}\n  Letra D\n  ${ONCE_PAST_LIMITS}\n`);
+    const frame = result.value.scene.artworks[0]!.frames[0]!;
+
+    expect(lastLineWords(text(frame, 'explicacao'))).toEqual(['das', 'decisões.']);
+    expect(result.diagnostics.map((item) => item.code)).not.toContain('W_TEMPLATE_ORPHAN');
   });
 
   it('clears the screenshot’s explanation by a rebreak alone, letter spacing and size off', async () => {
@@ -375,11 +385,17 @@ describe('options (TYTO-520)', () => {
 });
 
 /**
- * The screenshot's first sentence: under the half-em face its fitted setting ends on
- * "decisões." alone, and neither a rebreak (the line above would be left alone), letter
- * spacing nor a smaller size clears it. Found by compiling growing prefixes of the
- * explanation.
+ * An explanation whose last word nothing can move: the line above holds one word that no
+ * size within the limits fits beside it, so a rebreak would leave nothing behind.
  */
-const PAST_LIMITS =
+const PAST_LIMITS = 'Inconstitucionalissimamente-inconstitucionalissimamente fim.';
+
+/**
+ * The screenshot's first sentence: under the half-em face its fitted setting ends on
+ * "decisões." alone, and before Tyto TYTO-616 neither a rebreak (the line above would be left
+ * alone), letter spacing nor a smaller size cleared it. Found by compiling growing prefixes of
+ * the explanation.
+ */
+const ONCE_PAST_LIMITS =
   'A gestão democrática pressupõe participação coletiva, diálogo, transparência e ' +
   'compartilhamento das decisões.';

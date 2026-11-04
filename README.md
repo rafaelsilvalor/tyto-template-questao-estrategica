@@ -41,7 +41,9 @@ the exam's lines on the cover and the sign-off's title too. Those are Bold or Bl
 so there `**x**` keeps the text's own weight rather than drawing lighter: a bare `**x**` in
 those three texts shows nothing, and a colour mark, `{cor:azul}x{/}`, is what shows. Every rich text also keeps the kit's pairs on one line (`keepTogether`): a currency
 sign and its amount (`R$ 9,8`), an amount and its scale word (`9,8 mil`), a number and its
-percent (`10 %`).
+percent (`10 %`), and, since template-kit 0.11 (Tyto TYTO-620), a number and its unit (`3 s`,
+`2 m/s²`). A configured `highlight-weight` snaps to the nearest CircularXX weight the
+manifests declare (Tyto TYTO-619): 600 draws at 700.
 
 Math is written as plain Unicode: `Δv = a·Δt`, `α ≤ 30°`, `x²`, `10⁻³`. A glyph CircularXX
 lacks is drawn in Tyto's bundled symbol face (Tyto ADR 0168, core 0.37 or later): Noto Sans

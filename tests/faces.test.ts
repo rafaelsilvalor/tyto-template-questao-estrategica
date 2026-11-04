@@ -1,11 +1,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 
 import { defineTemplate, parseFormats, parseManifest } from '@tyto/core';
+import { fallbackChain } from '@tyto/core/template';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
 import { build as engenharia } from '../src/engenharia.js';
-import { build as house } from '../src/template.js';
+import { FACE_WEIGHTS, build as house } from '../src/template.js';
 
 import type { FaceCache, TemplateBuild } from '@tyto/core';
 
@@ -15,8 +16,9 @@ import type { FaceCache, TemplateBuild } from '@tyto/core';
  * In a plugin's process `context.measure` answers only from the faces the manifest lists, and
  * a face left out measures as nothing. So every (family, weight) a frame of an example draws
  * must be declared, and a declared face no example draws is a stale line. That includes the
- * symbol chain (Tyto ADR 0168): a glyph CircularXX lacks is drawn in Noto Sans Math 400, or
- * failing that in Source Sans 3 at 400 or 700, whichever is nearer the run's weight.
+ * symbol chain (Tyto ADR 0168): a glyph CircularXX lacks is drawn in the faces core's
+ * `fallbackChain` names for the run's weight, read from core rather than written here, so a
+ * change of the chain fails this test instead of passing it.
  */
 
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -95,5 +97,24 @@ describe.each(TEMPLATES)('the faces %s declares', (name, build) => {
 
     expect(examples).toContain('formula.brief');
     expect([...drawn].sort()).toEqual([...declared].sort());
+  });
+
+  it('declare the symbol chain core names for each CircularXX weight, and no other face', () => {
+    const declared = manifest.value.faces ?? [];
+    const own = declared.filter((face) => face.family === 'CircularXX').map((face) => face.weight);
+    const chain = new Set(
+      own.flatMap((weight) =>
+        fallbackChain({ weight, style: 'normal' }).map(
+          (face) => `${face.family} ${String(face.weight)}`,
+        ),
+      ),
+    );
+    const others = declared
+      .filter((face) => face.family !== 'CircularXX')
+      .map((face) => `${face.family} ${String(face.weight)}`);
+
+    expect([...chain].sort()).toEqual([...others].sort());
+    // The weights a configured highlight snaps to are the ones declared (TYTO-619).
+    expect(FACE_WEIGHTS.map((face) => face.weight)).toEqual(own);
   });
 });

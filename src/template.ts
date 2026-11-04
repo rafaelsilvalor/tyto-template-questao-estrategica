@@ -135,6 +135,13 @@ export const BOLD = 700;
 /** The reference sets "Curtiu?" in ExtraBlack, which Tyto has no face for: Black, the maintainer's call. */
 export const BLACK = 900;
 
+/**
+ * The CircularXX weights both manifests declare under `faces:` (`tests/faces.test.ts` holds
+ * them equal). A configured `highlight-weight` snaps to the nearest of them (Tyto TYTO-619), so
+ * a 600 draws at 700, in a face the plugin's process can measure.
+ */
+export const FACE_WEIGHTS = [LIGHT, REGULAR, MEDIUM, BOLD, BLACK].map((weight) => ({ weight }));
+
 /** The four `{cor:…}` swatches of the engineering reference, public defaults in both looks. */
 export const MARK_COLORS = {
   azul: '#2f628a',
@@ -1536,7 +1543,7 @@ type RunsOptions = NonNullable<Parameters<typeof runsOf>[2]>;
 
 /** How a look's words take `**…**` and `{cor:…}`: its highlights under the configuration's. */
 function runsOptions(context: TemplateContext, look: Look): RunsOptions {
-  return highlightsFromValues(context, look.highlights).options;
+  return highlightsFromValues(context, look.highlights, undefined, FACE_WEIGHTS).options;
 }
 
 interface Box {
@@ -1583,7 +1590,7 @@ export function richTextAt(
   spec: HighlightSpec = HIGHLIGHTS,
 ): TextDraft {
   const style = { font: FACE, size: placed.size, weight: placed.weight, color: placed.color };
-  const highlights = highlightsFromValues(context, spec);
+  const highlights = highlightsFromValues(context, spec, undefined, FACE_WEIGHTS);
   const weight = highlights.spec.bold?.weight ?? BOLD;
   const kept =
     placed.weight >= weight ? highlights.with({ bold: { weight: placed.weight } }) : highlights;

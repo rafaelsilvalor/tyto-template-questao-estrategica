@@ -8,6 +8,7 @@ import { build as buildEngineering } from './engenharia.js';
 import { BLACK, MARK_COLORS, build as buildHouse } from './template.js';
 
 import type { Frame, SceneNode, TemplateBuild, TextNode } from '@tyto/core';
+import type { CompileTemplateOptions } from '@tyto/template-kit/testing';
 
 /**
  * TYTO-618: `**…**` and the colour marks reach every text of both templates — the cover's
@@ -31,11 +32,17 @@ const TEMPLATES = {
 
 type Name = keyof typeof TEMPLATES;
 
-async function slides(name: Name, header: string, body: string): Promise<Frame[]> {
+async function slides(
+  name: Name,
+  header: string,
+  body: string,
+  options: Pick<CompileTemplateOptions, 'values'> = {},
+): Promise<Frame[]> {
   const result = await compileTemplate({
     brief: `---\ntemplate: ${name}\nformats: [grid]\n${header}---\n${body}`,
     template: TEMPLATES[name],
     formats,
+    ...options,
   });
   if (!result.ok) throw new Error(result.error.map((item) => item.message).join('\n'));
   return result.value.scene.artworks.flatMap((artwork) => artwork.frames);
@@ -124,5 +131,32 @@ describe.each(Object.keys(TEMPLATES) as Name[])('%s', (name) => {
     expect(glued(words(textNamed(statement, 'enunciado')))).toBe(true);
     expect(words(textNamed(answer, 'explicacao'))).toContain('R$ 980');
     expect(glued(words(textNamed(answer, 'explicacao')))).toBe(true);
+  });
+
+  it('draws a configured highlight-weight at the nearest declared face, 600 at 700', async () => {
+    const [, statement, answer] = await slides(
+      name,
+      '',
+      `${COVER}::lamina\n  Qual é **a** resposta?\n  A) Esta.\n  B) Aquela.\n\n` +
+        '::lamina {resposta}\n  Letra A\n  Porque **sim**.\n\n::lamina {fecho}',
+      { values: { 'highlight-weight': { value: 600 } } },
+    );
+
+    expect(runOf(textNamed(statement, 'enunciado'), 'a')?.weight).toBe(700);
+    expect(runOf(textNamed(answer, 'explicacao'), 'sim')?.weight).toBe(700);
+  });
+
+  it('keeps a number with its unit, in the statement and the explanation', async () => {
+    const [, statement, answer] = await slides(
+      name,
+      '',
+      `${COVER}::lamina\n  Em Δt = 3 s, quanto anda a 2 m/s?\n  A) 6 m.\n  B) 5 m.\n\n` +
+        '::lamina {resposta}\n  Letra A\n  Com a = 2 m/s² e Δt = 3 s, anda 6 m.\n\n::lamina {fecho}',
+    );
+
+    expect(words(textNamed(statement, 'enunciado'))).toContain('3 s,');
+    expect(words(textNamed(statement, 'enunciado'))).toContain('2 m/s');
+    expect(words(textNamed(answer, 'explicacao'))).toContain('Δt = 3 s');
+    expect(words(textNamed(answer, 'explicacao'))).toContain('2 m/s²');
   });
 });

@@ -22323,7 +22323,7 @@ var build = (context) => {
       ]
     });
   }
-  const body = role === "resposta" ? answer(context, ink, lift) : role === "fecho" ? signOff(context, ink) : statement(context, ink, lift);
+  const body = role === "resposta" ? answer(context, ink, lift, HOUSE) : role === "fecho" ? signOff(context, ink) : statement(context, ink, lift, HOUSE);
   return frame({
     format: context.format,
     size: context.size,
@@ -22432,10 +22432,13 @@ function examLines(context, color2, lift) {
   return draft(floor);
 }
 var FRAME_GAP = 48;
+var FRAME_X = 123;
 var STATEMENT = {
   x: 131,
-  labelSize: 45.83,
+  label: { words: STATEMENT_LABEL, size: 45.83, weight: BLACK, ink: "title-ink" },
   bodySize: 40,
+  bodyWeight: LIGHT,
+  bodyInk: "body-ink",
   bodyLineHeight: 1.5,
   bodyWidth: 810,
   /** An option's letter stands on the statement's left edge (the maintainer, 2026-10-30). */
@@ -22446,9 +22449,19 @@ var STATEMENT = {
   optionLineHeight: 1.2,
   optionWidth: 786,
   /** From one option's last line's capitals to the next option's first. */
-  optionPitch: 74.25
+  optionPitch: 74.25,
+  optionWeight: LIGHT,
+  letterWeight: MEDIUM,
+  letterInk: "title-ink",
+  /**
+   * The statement slide's gaps as weights (Tyto ADR 0167), from the reference: 70 px from the
+   * logo to the label, 60 from the label to the statement, 71 from the statement to the
+   * options, each over the 70 of the first. The gap under the options is the one over the
+   * label, so the slide's middle is centred between the logo and the footer.
+   */
+  gaps: { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP },
+  frameX: FRAME_X
 };
-var STATEMENT_GAPS = { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP };
 var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
 var LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
 function optionsOf(lines2) {
@@ -22465,13 +22478,15 @@ ${line.trim()}` };
   }
   return options;
 }
-function statement(context, ink, lift) {
+function statement(context, ink, lift, shared) {
+  const look = shared.statement;
   const segments = statementSegments(slideParts(context));
   const continued = context.adjustments["continua"] === true;
+  const label = look.label;
   const stackAt = (tuning) => {
     const size = tuning.size;
-    const scale = size / STATEMENT.bodySize;
-    const optionSize = STATEMENT.optionSize * scale;
+    const scale = size / look.bodySize;
+    const optionSize = look.optionSize * scale;
     const pieces = [];
     const weights = [];
     const extras = [];
@@ -22480,78 +22495,84 @@ function statement(context, ink, lift) {
     let bodies = 0;
     let optionCount = 0;
     const add = (kind, piece) => {
-      weights.push(statementGap(above, kind));
+      weights.push(statementGap(look.gaps, above, kind));
       pieces.push(piece);
       above = kind;
     };
-    if (!continued) {
+    if (!continued && label !== void 0) {
       add(
         "label",
-        linesPiece(1, STATEMENT.labelSize, 1, (capTop) => [
-          textAt("rotulo", STATEMENT_LABEL, {
-            x: STATEMENT.x,
+        linesPiece(1, label.size, 1, (capTop) => [
+          textAt("rotulo", label.words, {
+            x: look.x,
             capTop,
-            size: STATEMENT.labelSize,
-            weight: BLACK,
-            color: ink("title-ink")
+            size: label.size,
+            weight: label.weight,
+            color: ink(label.ink)
           })
         ])
       );
     }
     for (const segment of segments) {
       if (segment.kind === "picture") {
-        add("picture", picturePiece(segment.picture, FRAME_X, ink));
+        add("picture", picturePiece(segment.picture, look.frameX, ink, shared));
       } else if (segment.kind === "body") {
         bodies += 1;
         const number4 = bodies;
         const main = number4 === 1;
         const extra = extras.length;
-        const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+        const style2 = { font: FACE2, size, weight: look.bodyWeight, color: ink(look.bodyInk) };
         const draftAt = (capTop) => redrawn(
-          richAt(main ? "enunciado" : `enunciado-${number4}`, segment.lines, style2, {
-            x: STATEMENT.x,
-            capTop,
-            lineHeight: STATEMENT.bodyLineHeight,
-            width: STATEMENT.bodyWidth,
-            letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
-          }),
+          richAt(
+            main ? "enunciado" : `enunciado-${number4}`,
+            segment.lines,
+            style2,
+            {
+              x: look.x,
+              capTop,
+              lineHeight: look.bodyLineHeight,
+              width: look.bodyWidth,
+              letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
+            },
+            shared.bold
+          ),
           main ? tuning.runs : tuning.extraRuns?.[extra]
         );
         const draft = draftAt(0);
         if (main) text2 = draft;
         else extras.push({ text: draft, size });
-        const count = lineCount(context, draft, segment.lines, size, STATEMENT.bodyWidth);
+        const count = lineCount(context, draft, segment.lines, size, look.bodyWidth);
         add(
           "body",
-          linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)])
+          linesPiece(count, size, look.bodyLineHeight, (capTop) => [draftAt(capTop)])
         );
       } else {
         const first = optionCount;
         optionCount += segment.options.length;
         add(
           "options",
-          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink)
+          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink, look)
         );
       }
     }
-    weights.push(STATEMENT_GAPS.edge);
+    weights.push(look.gaps.edge);
     return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
-  return fitStack(context, "statement", stackAt, FOOTER_TOP - lift);
+  return fitStack(context, "statement", stackAt, shared.room.bottom - lift, shared);
 }
-function optionsPiece(context, options, first, optionSize, tuning, extras, ink) {
-  const scale = optionSize / STATEMENT.optionSize;
-  const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
-  const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+function optionsPiece(context, options, first, optionSize, tuning, extras, ink, look) {
+  const scale = optionSize / look.optionSize;
+  const textX = look.optionX + (look.optionTextX - look.optionX) * scale;
+  const width = look.optionWidth - (textX - look.optionTextX);
   const offset = extras.length;
   const wordsAt = (index, capTop) => redrawn(
     textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? "", {
       x: textX,
       capTop,
       size: optionSize,
-      weight: LIGHT,
-      color: ink("body-ink"),
-      lineHeight: STATEMENT.optionLineHeight,
+      weight: look.optionWeight,
+      color: ink(look.bodyInk),
+      lineHeight: look.optionLineHeight,
       width,
       letterSpacing: tuning.extras[offset + index] ?? 0
     }),
@@ -22562,13 +22583,13 @@ function optionsPiece(context, options, first, optionSize, tuning, extras, ink) 
     extras.push({ text: words, size: optionSize });
     return lineCount(context, words, option.words.split("\n"), optionSize, width);
   });
-  const leading = optionSize * STATEMENT.optionLineHeight;
+  const leading = optionSize * look.optionLineHeight;
   const topsFrom = (top) => {
     const tops = [];
     let at2 = top;
     for (const count of counts) {
       tops.push(at2);
-      at2 += (count - 1) * leading + STATEMENT.optionPitch * scale;
+      at2 += (count - 1) * leading + look.optionPitch * scale;
     }
     return tops;
   };
@@ -22578,12 +22599,12 @@ function optionsPiece(context, options, first, optionSize, tuning, extras, ink) 
     height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
     place: (top) => topsFrom(top).flatMap((capTop, index) => [
       textAt(`letra-${first + index + 1}`, options[index]?.letter ?? "", {
-        x: STATEMENT.optionX,
+        x: look.optionX,
         capTop,
         size: optionSize,
-        weight: MEDIUM,
-        color: ink("title-ink"),
-        lineHeight: STATEMENT.optionLineHeight
+        weight: look.letterWeight,
+        color: ink(look.letterInk),
+        lineHeight: look.optionLineHeight
       }),
       wordsAt(index, capTop)
     ])
@@ -22610,28 +22631,29 @@ function statementSegments(parts) {
   }
   return segments;
 }
-function statementGap(above, kind) {
-  if (above === void 0) return STATEMENT_GAPS.edge;
-  if (above === "picture" || kind === "picture") return STATEMENT_GAPS.picture;
-  if (above === "label" && kind === "body") return STATEMENT_GAPS.labelToBody;
-  return STATEMENT_GAPS.bodyToOptions;
+function statementGap(gaps, above, kind) {
+  if (above === void 0) return gaps.edge;
+  if (above === "picture" || kind === "picture") return gaps.picture;
+  if (above === "label" && kind === "body") return gaps.labelToBody;
+  return gaps.bodyToOptions;
 }
 var ROOM_TOP = 48 + 79;
-function fitStack(context, name, stackAt, bottom) {
-  const floor = numberValue(context, `${name}-floor`, NUMBER_DEFAULTS[`${name}-floor`]);
+function fitStack(context, name, stackAt, bottom, look) {
+  const defaults = look.numbers;
+  const floor = numberValue(context, `${name}-floor`, defaults[`${name}-floor`]);
   const ceiling = Math.max(
     floor,
-    numberValue(context, `${name}-ceiling`, NUMBER_DEFAULTS[`${name}-ceiling`])
+    numberValue(context, `${name}-ceiling`, defaults[`${name}-ceiling`])
   );
-  const gapFloor = numberValue(context, "gap-floor", NUMBER_DEFAULTS["gap-floor"]);
+  const gapFloor = numberValue(context, "gap-floor", defaults["gap-floor"]);
   const limits = {
-    shrink: numberValue(context, "orphan-shrink", NUMBER_DEFAULTS["orphan-shrink"]),
-    tracking: numberValue(context, "orphan-tracking", NUMBER_DEFAULTS["orphan-tracking"])
+    shrink: numberValue(context, "orphan-shrink", defaults["orphan-shrink"]),
+    tracking: numberValue(context, "orphan-tracking", defaults["orphan-tracking"])
   };
   const arrange = (tuning2) => {
     const stacked = stackAt(tuning2);
     const heights = stacked.pieces.map((piece) => piece.height);
-    const spaced = spaceByWeight({ top: ROOM_TOP, bottom, heights, weights: stacked.weights });
+    const spaced = spaceByWeight({ top: look.room.top, bottom, heights, weights: stacked.weights });
     return { stacked, spaced, fits: spaced.unit >= gapFloor };
   };
   const plainAt = (size) => ({ size, letterSpacing: 0, extras: [] });
@@ -22646,7 +22668,7 @@ function fitStack(context, name, stackAt, bottom) {
       code: "W_TEMPLATE_OVERFLOW",
       overflow: (gapFloor - arranged2.spaced.unit) * weight
     });
-    return drawn(arranged2.stacked, arranged2.spaced.tops);
+    return drawn(arranged2.stacked, arranged2.spaced.tops, look.room.top);
   }
   let tuning = plainAt(fitted);
   const orphans = [];
@@ -22686,17 +22708,17 @@ function fitStack(context, name, stackAt, bottom) {
   }
   for (const word of orphans) reportOrphan(context.report, word);
   const arranged = arrange(tuning);
-  return drawn(arranged.stacked, arranged.spaced.tops);
+  return drawn(arranged.stacked, arranged.spaced.tops, look.room.top);
 }
-function drawn(stacked, tops) {
-  return stacked.pieces.flatMap((piece, index) => piece.place(tops[index] ?? ROOM_TOP));
+function drawn(stacked, tops, top) {
+  return stacked.pieces.flatMap((piece, index) => piece.place(tops[index] ?? top));
 }
 function linesPiece(count, size, lineHeight, place) {
   return { height: (count - 1) * size * lineHeight + size * CAP_HEIGHT, place };
 }
-function picturePiece(picture, x, ink) {
-  const height = framedImage(picture, { x, y: 0 }, ink).foot;
-  return { height, place: (y) => framedImage(picture, { x, y }, ink).nodes };
+function picturePiece(picture, x, ink, look) {
+  const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
+  return { height, place: (y) => framedImage(picture, { x, y }, ink, look).nodes };
 }
 var FRAME = {
   w: 835,
@@ -22707,7 +22729,6 @@ var FRAME = {
   /** The radius of the white area's two left corners, where it meets the bar. */
   radius: 32
 };
-var FRAME_X = 123;
 var FRAME_SHAPES = { widest: 3, tallest: 1 };
 var PROPORTIONS = {
   "3x1": 3,
@@ -22748,7 +22769,7 @@ function slideParts(context) {
   }
   return parts;
 }
-function framedImage(picture, at2, ink) {
+function framedImage(picture, at2, ink, look) {
   const width = FRAME.w - FRAME.side - FRAME.border;
   const natural = imageHeight(picture.asset, width, width / picture.written);
   const clamped = Math.min(
@@ -22763,7 +22784,7 @@ function framedImage(picture, at2, ink) {
     name,
     geometry: { kind: "path", d, fillRule: "nonzero" },
     size: { w: r, h: r },
-    fill: solid(ink("title-ink")),
+    fill: solid(ink(look.frameInk)),
     transform: { x: inside.x, y }
   });
   return {
@@ -22771,11 +22792,11 @@ function framedImage(picture, at2, ink) {
       rect({
         name: "moldura",
         size: { w: FRAME.w, h: height },
-        fill: solid(ink("title-ink")),
+        fill: solid(ink(look.frameInk)),
         effects: [SHADOW],
         transform: { x: at2.x, y: at2.y }
       }),
-      rect({ name: "fundo-imagem", size, fill: solid(ink("paper")), transform: inside }),
+      rect({ name: "fundo-imagem", size, fill: solid(ink(look.frameFill)), transform: inside }),
       image({ name: "imagem", asset: picture.asset, size, fit: "contain", transform: inside }),
       corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
@@ -22793,21 +22814,39 @@ var SHADOW = {
 };
 var ANSWER = {
   x: 80,
-  labelSize: 45.06,
-  /** From the label's capitals to the answer's. */
+  label: { words: ANSWER_LABEL, size: 45.06, weight: BLACK, ink: "title-ink" },
   labelToAnswer: 59,
   answerSize: 103,
+  answerWeight: BLACK,
+  answerInk: "title-ink",
   bodySize: 68.09,
+  bodyWeight: LIGHT,
+  bodyInk: "body-ink",
   bodyLineHeight: 1.5,
-  bodyWidth: 840
+  bodyWidth: 840,
+  /**
+   * The answer slide's gaps as weights (Tyto ADR 0167), from the reference: 102 px from the
+   * logo to the label and 165 from the answer to the explanation, which stays the largest. The
+   * gap under the explanation is the one over the label, so the slide's middle is centred.
+   */
+  gaps: { edge: 102, headToBody: 165, picture: FRAME_GAP }
 };
-var ANSWER_GAPS = { edge: 102, headToBody: 165, picture: FRAME_GAP };
-function answerGap(above, kind) {
-  if (above === void 0) return ANSWER_GAPS.edge;
-  if (above === "picture" || kind === "picture") return ANSWER_GAPS.picture;
-  return ANSWER_GAPS.headToBody;
+var HOUSE = {
+  statement: STATEMENT,
+  answer: ANSWER,
+  room: { top: ROOM_TOP, bottom: FOOTER_TOP },
+  numbers: NUMBER_DEFAULTS,
+  bold: BOLD3,
+  frameInk: "title-ink",
+  frameFill: "paper"
+};
+function answerGap(gaps, above, kind) {
+  if (above === void 0) return gaps.edge;
+  if (above === "picture" || kind === "picture") return gaps.picture;
+  return gaps.headToBody;
 }
-function answer(context, ink, lift) {
+function answer(context, ink, lift, shared) {
+  const look = shared.answer;
   const continued = context.adjustments["continua"] === true;
   const parts = slideParts(context);
   let first;
@@ -22828,34 +22867,34 @@ function answer(context, ink, lift) {
     let text2;
     let bodies = 0;
     const add = (kind, piece) => {
-      weights.push(answerGap(above, kind));
+      weights.push(answerGap(look.gaps, above, kind));
       pieces.push(piece);
       above = kind;
     };
     if (!continued) {
       add("head", {
-        height: ANSWER.labelToAnswer + ANSWER.answerSize * CAP_HEIGHT,
+        height: look.labelToAnswer + look.answerSize * CAP_HEIGHT,
         place: (capTop) => [
-          textAt("rotulo", ANSWER_LABEL, {
-            x: ANSWER.x,
+          textAt("rotulo", look.label.words, {
+            x: look.x,
             capTop,
-            size: ANSWER.labelSize,
-            weight: BLACK,
-            color: ink("title-ink")
+            size: look.label.size,
+            weight: look.label.weight,
+            color: ink(look.label.ink)
           }),
           textAt("resposta", first === void 0 ? "" : plain(first).trim(), {
-            x: ANSWER.x,
-            capTop: capTop + ANSWER.labelToAnswer,
-            size: ANSWER.answerSize,
-            weight: BLACK,
-            color: ink("title-ink")
+            x: look.x,
+            capTop: capTop + look.labelToAnswer,
+            size: look.answerSize,
+            weight: look.answerWeight,
+            color: ink(look.answerInk)
           })
         ]
       });
     }
     for (const part of rest) {
       if (part.kind === "picture") {
-        add("picture", picturePiece(part.picture, ANSWER.x, ink));
+        add("picture", picturePiece(part.picture, look.x, ink, shared));
         continue;
       }
       bodies += 1;
@@ -22863,30 +22902,36 @@ function answer(context, ink, lift) {
       const main = number4 === 1;
       const extra = extras.length;
       const size = tuning.size;
-      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+      const style2 = { font: FACE2, size, weight: look.bodyWeight, color: ink(look.bodyInk) };
       const draftAt = (capTop) => redrawn(
-        richAt(main ? "explicacao" : `explicacao-${number4}`, part.lines, style2, {
-          x: ANSWER.x,
-          capTop,
-          lineHeight: ANSWER.bodyLineHeight,
-          width: ANSWER.bodyWidth,
-          letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
-        }),
+        richAt(
+          main ? "explicacao" : `explicacao-${number4}`,
+          part.lines,
+          style2,
+          {
+            x: look.x,
+            capTop,
+            lineHeight: look.bodyLineHeight,
+            width: look.bodyWidth,
+            letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
+          },
+          shared.bold
+        ),
         main ? tuning.runs : tuning.extraRuns?.[extra]
       );
       const draft = draftAt(0);
       if (main) text2 = draft;
       else extras.push({ text: draft, size });
-      const count = lineCount(context, draft, part.lines, size, ANSWER.bodyWidth);
+      const count = lineCount(context, draft, part.lines, size, look.bodyWidth);
       add(
         "body",
-        linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)])
+        linesPiece(count, size, look.bodyLineHeight, (capTop) => [draftAt(capTop)])
       );
     }
-    weights.push(ANSWER_GAPS.edge);
+    weights.push(look.gaps.edge);
     return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
-  return fitStack(context, "explanation", stackAt, FOOTER_TOP - lift);
+  return fitStack(context, "explanation", stackAt, shared.room.bottom - lift, shared);
 }
 var SIGN_OFF = {
   titleTop: 375,
@@ -23002,10 +23047,10 @@ function textAt(name, words, placed) {
     placed
   );
 }
-function richAt(name, written, style2, box) {
+function richAt(name, written, style2, box, bold = BOLD3) {
   const runs = written.flatMap((line, index) => [
     ...index > 0 ? [lineBreak()] : [],
-    ...runsOf(line, style2, { bold: BOLD3 })
+    ...runsOf(line, style2, { bold })
   ]);
   return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
 }

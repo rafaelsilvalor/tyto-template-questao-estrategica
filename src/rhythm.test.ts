@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { type FaceCache, defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
+import { plain } from '@tyto/template-kit';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
@@ -271,11 +272,56 @@ describe('options (TYTO-520)', () => {
       'II. seis',
     ]);
 
-    expect(options).toEqual([
+    const read = options.map(({ letter, words }) => ({
+      letter,
+      words: words.map(plain).join('\n'),
+    }));
+    expect(read).toEqual([
       { letter: 'A)', words: 'um\ndois' },
       { letter: 'a)', words: 'três' },
       { letter: 'B.', words: 'quatro\netc. e cinco\nII. seis' },
     ]);
+  });
+
+  it("draws an option's highlights, its letter cut off and nothing else (TYTO-607)", async () => {
+    const frame = await slide(
+      slideOf(['A) a **chave** e {cor:verde}Δv{/}', 'B. {cor:azul}x²{/} ≤ **y**']),
+    );
+    const solid = (r: number, g: number, b: number) => ({
+      kind: 'solid',
+      color: { r, g, b, a: 1 },
+    });
+    const styled = (name: string) =>
+      text(frame, name).runs.flatMap((run) =>
+        run.kind === 'text' ? [[run.text, run.weight, run.color] as const] : [],
+      );
+    // The options' own weight and colour: Light in the body ink (#4d4d4d).
+    const light = 300;
+    const ink = solid(77, 77, 77);
+
+    expect(styled('alternativa-1')).toEqual([
+      ['a ', light, ink],
+      ['chave', 700, ink],
+      [' e ', light, ink],
+      ['Δv', 700, solid(57, 144, 46)],
+    ]);
+    expect(styled('alternativa-2')).toEqual([
+      ['x²', 700, solid(47, 98, 138)],
+      [' ≤ ', light, ink],
+      ['y', 700, ink],
+    ]);
+  });
+
+  it('cuts a trailing space off an option without leaving an empty piece', () => {
+    const [option] = optionsOf(['A) a **chave** e {cor:verde}Δv{/} ']);
+
+    expect(option?.words[0]?.map((inline) => inline.kind)).toEqual([
+      'text',
+      'bold',
+      'text',
+      'mark',
+    ]);
+    expect(option?.words.map(plain)).toEqual(['a chave e Δv']);
   });
 
   it('moves a word down beside a lonely last one, a word that would have fitted above', async () => {

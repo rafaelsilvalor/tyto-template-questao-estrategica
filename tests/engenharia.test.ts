@@ -5,6 +5,7 @@ import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
 import { COLOR_DEFAULTS, NUMBER_DEFAULTS, build } from '../src/engenharia.js';
+import { HIGHLIGHT_DEFAULTS } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
 
@@ -81,7 +82,11 @@ describe('the example questao-engenharia', () => {
 
 describe('questao-engenharia declared values', () => {
   const declared = manifest.value.values ?? {};
-  const fallbacks: Record<string, unknown> = { ...COLOR_DEFAULTS, ...NUMBER_DEFAULTS };
+  const fallbacks: Record<string, unknown> = {
+    ...COLOR_DEFAULTS,
+    ...NUMBER_DEFAULTS,
+    ...HIGHLIGHT_DEFAULTS,
+  };
 
   it('declares each default equal to the one the code falls back to, and no other', () => {
     const defaults = Object.fromEntries(
@@ -100,7 +105,7 @@ describe('questao-engenharia declared values', () => {
   });
 
   it('paints a highlight a configured colour, found in the HTML', async () => {
-    const painted = await html({ 'highlight-azul': { value: '#123456' } });
+    const painted = await html({ 'mark-cor-azul': { value: '#123456' } });
 
     expect(painted).toContain('#123456');
     expect(await html()).not.toContain('#123456');

@@ -5,6 +5,7 @@ import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
 import { COLOR_DEFAULTS, DEFAULT_SIGN_OFF_TITLE, build } from './engenharia.js';
+import { MARK_COLORS } from './template.js';
 
 import type { Frame, SceneNode, TextNode } from '@tyto/core';
 
@@ -101,10 +102,10 @@ describe('questao-engenharia', () => {
     expect(blue).toEqual(
       expect.objectContaining({
         weight: 700,
-        color: COLOR_DEFAULTS['highlight-azul'],
+        color: MARK_COLORS.azul,
       }),
     );
-    expect(red?.color).toEqual(COLOR_DEFAULTS['highlight-vermelho']);
+    expect(red?.color).toEqual(MARK_COLORS.vermelho);
   });
 
   it('draws "Gabarito", the answer and a rule under it', async () => {

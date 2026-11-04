@@ -23188,14 +23188,6 @@ function framedImage(picture, at2, ink, look) {
   const fit = clamped === natural ? "cover" : "contain";
   const height = size.h + 2 * FRAME.border;
   const inside = { x: at2.x + FRAME.side, y: at2.y + FRAME.border };
-  const r = FRAME.radius;
-  const corner = (name, d, y) => vector({
-    name,
-    geometry: { kind: "path", d, fillRule: "nonzero" },
-    size: { w: r, h: r },
-    fill: solid(ink(look.frameInk)),
-    transform: { x: inside.x, y }
-  });
   return {
     nodes: [
       rect({
@@ -23207,11 +23199,28 @@ function framedImage(picture, at2, ink, look) {
       }),
       rect({ name: "fundo-imagem", size, fill: solid(ink(look.frameFill)), transform: inside }),
       image({ name: "imagem", asset: picture.asset, size, fit, transform: inside }),
-      corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
-      corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
+      vector({
+        name: "contorno",
+        geometry: { kind: "path", d: frameOutline({ w: FRAME.w, h: height }), fillRule: "evenodd" },
+        size: { w: FRAME.w, h: height },
+        fill: solid(ink(look.frameInk)),
+        transform: { x: at2.x, y: at2.y }
+      })
     ],
     foot: at2.y + height
   };
+}
+function frameOutline(size) {
+  const r = FRAME.radius;
+  const left = FRAME.side;
+  const right = size.w - FRAME.border;
+  const top = FRAME.border;
+  const foot = size.h - FRAME.border;
+  return [
+    `M0 0H${size.w}V${size.h}H0Z`,
+    `M${left + r} ${top}H${right}V${foot}H${left + r}`,
+    `A${r} ${r} 0 0 1 ${left} ${foot - r}V${top + r}A${r} ${r} 0 0 1 ${left + r} ${top}Z`
+  ].join("");
 }
 function bareImage(picture, at2, width) {
   const natural = imageHeight(picture.asset, width, width / picture.written);

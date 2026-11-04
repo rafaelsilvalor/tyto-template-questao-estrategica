@@ -83,7 +83,7 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
     const frame = all.find((node) => node.name === 'moldura');
     const image = all.find((node): node is ImageNode => node.kind === 'image');
     const words = all.find((node): node is TextNode => node.name === 'enunciado');
-    return { frame, image, words };
+    return { frame, image, words, all };
   }
 
   it('stands the frame on whole pixels', async () => {
@@ -91,6 +91,34 @@ describe.each(TEMPLATES)('%s: a picture in its frame', (name, build) => {
 
     expect(Number.isInteger(frame?.transform.y)).toBe(true);
     expect(Number.isInteger(image?.transform.y)).toBe(true);
+  });
+
+  it("draws the frame's ink as one outline whose hole is the white area, so no seam shows", async () => {
+    const { frame, all } = await framed('900x300.png');
+    const outline = all.find((node) => node.name === 'contorno');
+    const paper = all.find((node) => node.name === 'fundo-imagem');
+    if (outline?.kind !== 'vector' || paper?.kind !== 'rect' || frame?.kind !== 'rect') {
+      throw new Error('the frame, its outline and its white area are drawn');
+    }
+    // One piece of the frame's ink, over the white area and the picture: no corner pieces.
+    expect(all.filter((node) => node.name?.startsWith('canto'))).toEqual([]);
+    expect(all.indexOf(outline)).toBeGreaterThan(all.findIndex((node) => node.kind === 'image'));
+    expect(outline.transform).toEqual(frame.transform);
+    expect(outline.size).toEqual(frame.size);
+    expect(outline.fill).toEqual(frame.fill);
+    if (outline.geometry.kind !== 'path') throw new Error('the outline is a path');
+    expect(outline.geometry.fillRule).toBe('evenodd');
+    // The outline's hole is exactly the white area: its edges, in the slide's coordinates.
+    const d = outline.geometry.d;
+    const hole = d.slice(d.indexOf('M', 1));
+    const numbers = [...hole.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+    const [start, top, right, foot] = [numbers[0]!, numbers[1]!, numbers[2]!, numbers[3]!];
+    const r = 32;
+    expect(frame.transform.x + start - r).toBe(paper.transform.x);
+    expect(frame.transform.y + top).toBe(paper.transform.y);
+    expect(frame.transform.x + right).toBe(paper.transform.x + paper.size.w);
+    expect(frame.transform.y + foot).toBe(paper.transform.y + paper.size.h);
+    expect(hole).toContain(`A${r} ${r} 0 0 1`);
   });
 
   it('covers the frame with a picture of a shape it takes, and fits a taller one whole', async () => {

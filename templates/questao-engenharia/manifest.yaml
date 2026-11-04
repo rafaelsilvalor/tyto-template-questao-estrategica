@@ -1,5 +1,5 @@
 name: questao-engenharia
-version: 0.2.0
+version: 0.2.1
 brand: engenharia
 description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).

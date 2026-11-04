@@ -22171,6 +22171,9 @@ function drawBrandMark(shape, height, inks, name) {
 function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
+function accentOf(kit, fallback) {
+  return kit.colors?.accent ?? fallback;
+}
 function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
@@ -22323,7 +22326,7 @@ var build = (context) => {
       ]
     });
   }
-  const body = role === "resposta" ? answer(context, ink, lift) : role === "fecho" ? signOff(context, ink) : statement(context, ink, lift);
+  const body = role === "resposta" ? answer(context, ink, lift, HOUSE) : role === "fecho" ? signOff(context, ink) : statement(context, ink, lift, HOUSE);
   return frame({
     format: context.format,
     size: context.size,
@@ -22393,38 +22396,37 @@ var EXAM = {
   /** 80 px over the slide's number. */
   bottom: 1162 - 80,
   /** A capital's advance, in em, for when nothing can be measured (a test, CI without the face). */
-  estimatedAdvance: 0.6
+  estimatedAdvance: 0.6,
+  weight: BOLD3
 };
-function examLines(context, color2, lift) {
+function examLines(context, color2, lift, exam = EXAM, numbers = NUMBER_DEFAULTS) {
   const written = slideLines(context);
-  const floor = numberValue(context, "exam-floor", NUMBER_DEFAULTS["exam-floor"]);
-  const ceiling = Math.max(
-    floor,
-    numberValue(context, "exam-ceiling", NUMBER_DEFAULTS["exam-ceiling"])
-  );
-  const bottom = EXAM.bottom - lift;
+  const floor = numberValue(context, "exam-floor", numbers["exam-floor"]);
+  const ceiling = Math.max(floor, numberValue(context, "exam-ceiling", numbers["exam-ceiling"]));
+  const bottom = exam.bottom - lift;
   const draft = (size) => textAt("prova", written.join("\n"), {
-    x: EXAM.x,
-    capTop: EXAM.capTop,
+    x: exam.x,
+    capTop: exam.capTop,
     size,
-    weight: BOLD3,
+    weight: exam.weight,
     color: color2,
-    lineHeight: EXAM.lineHeight,
-    width: EXAM.width
+    lineHeight: exam.lineHeight,
+    width: exam.width,
+    ...exam.tracking === void 0 ? {} : { letterSpacing: exam.tracking * size }
   });
   const layout = (size) => {
     const node2 = draft(size);
     const measured = node2.kind === "text" ? context.measure(node2) : void 0;
     if (measured !== void 0) return measured;
     const widest = Math.max(0, ...written.map((line) => [...line].length));
-    return { lines: written.length, width: widest * EXAM.estimatedAdvance * size };
+    return { lines: written.length, width: widest * exam.estimatedAdvance * size };
   };
-  const foot = (size, lines2) => EXAM.capTop + (lines2 - 1) * size * EXAM.lineHeight + size * CAP_HEIGHT;
+  const foot = (size, lines2) => exam.capTop + (lines2 - 1) * size * exam.lineHeight + size * CAP_HEIGHT;
   const sizes = [];
   for (let size = Math.floor(ceiling); size >= floor; size -= 1) sizes.push(size);
   const fits = (size, keepLines) => {
     const laid = layout(size);
-    return laid.width <= EXAM.width + 0.5 && foot(size, laid.lines) <= bottom && (!keepLines || laid.lines <= Math.max(1, written.length));
+    return laid.width <= exam.width + 0.5 && foot(size, laid.lines) <= bottom && (!keepLines || laid.lines <= Math.max(1, written.length));
   };
   const chosen = sizes.find((size) => fits(size, true)) ?? sizes.find((size) => fits(size, false));
   if (chosen !== void 0) return draft(chosen);
@@ -22432,10 +22434,13 @@ function examLines(context, color2, lift) {
   return draft(floor);
 }
 var FRAME_GAP = 48;
+var FRAME_X = 123;
 var STATEMENT = {
   x: 131,
-  labelSize: 45.83,
+  label: { words: STATEMENT_LABEL, size: 45.83, weight: BLACK, ink: "title-ink" },
   bodySize: 40,
+  bodyWeight: LIGHT,
+  bodyInk: "body-ink",
   bodyLineHeight: 1.5,
   bodyWidth: 810,
   /** An option's letter stands on the statement's left edge (the maintainer, 2026-10-30). */
@@ -22446,9 +22451,19 @@ var STATEMENT = {
   optionLineHeight: 1.2,
   optionWidth: 786,
   /** From one option's last line's capitals to the next option's first. */
-  optionPitch: 74.25
+  optionPitch: 74.25,
+  optionWeight: LIGHT,
+  letterWeight: MEDIUM,
+  letterInk: "title-ink",
+  /**
+   * The statement slide's gaps as weights (Tyto ADR 0167), from the reference: 70 px from the
+   * logo to the label, 60 from the label to the statement, 71 from the statement to the
+   * options, each over the 70 of the first. The gap under the options is the one over the
+   * label, so the slide's middle is centred between the logo and the footer.
+   */
+  gaps: { edge: 70, foot: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP },
+  frameX: FRAME_X
 };
-var STATEMENT_GAPS = { edge: 70, labelToBody: 60, bodyToOptions: 71, picture: FRAME_GAP };
 var OPTION = /^\s*([A-Za-z]{1,3}\))\s*(.*)$/;
 var LATER_OPTION = /^\s*([A-Za-z]\.)\s+(.*)$/;
 function optionsOf(lines2) {
@@ -22465,13 +22480,15 @@ ${line.trim()}` };
   }
   return options;
 }
-function statement(context, ink, lift) {
+function statement(context, ink, lift, shared) {
+  const look = shared.statement;
   const segments = statementSegments(slideParts(context));
   const continued = context.adjustments["continua"] === true;
+  const label = look.label;
   const stackAt = (tuning) => {
     const size = tuning.size;
-    const scale = size / STATEMENT.bodySize;
-    const optionSize = STATEMENT.optionSize * scale;
+    const scale = size / look.bodySize;
+    const optionSize = look.optionSize * scale;
     const pieces = [];
     const weights = [];
     const extras = [];
@@ -22480,78 +22497,87 @@ function statement(context, ink, lift) {
     let bodies = 0;
     let optionCount = 0;
     const add = (kind, piece) => {
-      weights.push(statementGap(above, kind));
+      weights.push(statementGap(look.gaps, above, kind));
       pieces.push(piece);
       above = kind;
     };
-    if (!continued) {
+    if (!continued && label !== void 0) {
       add(
         "label",
-        linesPiece(1, STATEMENT.labelSize, 1, (capTop) => [
-          textAt("rotulo", STATEMENT_LABEL, {
-            x: STATEMENT.x,
+        linesPiece(1, label.size, 1, (capTop) => [
+          textAt("rotulo", label.words, {
+            x: look.x,
             capTop,
-            size: STATEMENT.labelSize,
-            weight: BLACK,
-            color: ink("title-ink")
+            size: label.size,
+            weight: label.weight,
+            color: ink(label.ink)
           })
         ])
       );
     }
     for (const segment of segments) {
       if (segment.kind === "picture") {
-        add("picture", picturePiece(segment.picture, FRAME_X, ink));
+        add(
+          "picture",
+          picturePiece(segment.picture, look.frameX, ink, shared, { x: look.x, w: look.bodyWidth })
+        );
       } else if (segment.kind === "body") {
         bodies += 1;
         const number4 = bodies;
         const main = number4 === 1;
         const extra = extras.length;
-        const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+        const style2 = { font: FACE2, size, weight: look.bodyWeight, color: ink(look.bodyInk) };
         const draftAt = (capTop) => redrawn(
-          richAt(main ? "enunciado" : `enunciado-${number4}`, segment.lines, style2, {
-            x: STATEMENT.x,
-            capTop,
-            lineHeight: STATEMENT.bodyLineHeight,
-            width: STATEMENT.bodyWidth,
-            letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
-          }),
+          richAt(
+            main ? "enunciado" : `enunciado-${number4}`,
+            segment.lines,
+            style2,
+            {
+              x: look.x,
+              capTop,
+              lineHeight: look.bodyLineHeight,
+              width: look.bodyWidth,
+              letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
+            },
+            runsOptions(shared, ink)
+          ),
           main ? tuning.runs : tuning.extraRuns?.[extra]
         );
         const draft = draftAt(0);
         if (main) text2 = draft;
         else extras.push({ text: draft, size });
-        const count = lineCount(context, draft, segment.lines, size, STATEMENT.bodyWidth);
+        const count = lineCount(context, draft, segment.lines, size, look.bodyWidth);
         add(
           "body",
-          linesPiece(count, size, STATEMENT.bodyLineHeight, (capTop) => [draftAt(capTop)])
+          linesPiece(count, size, look.bodyLineHeight, (capTop) => [draftAt(capTop)])
         );
       } else {
         const first = optionCount;
         optionCount += segment.options.length;
         add(
           "options",
-          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink)
+          optionsPiece(context, segment.options, first, optionSize, tuning, extras, ink, look)
         );
       }
     }
-    weights.push(STATEMENT_GAPS.edge);
+    weights.push(look.gaps.foot);
     return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
-  return fitStack(context, "statement", stackAt, FOOTER_TOP - lift);
+  return fitStack(context, "statement", stackAt, shared.room.bottom - lift, shared);
 }
-function optionsPiece(context, options, first, optionSize, tuning, extras, ink) {
-  const scale = optionSize / STATEMENT.optionSize;
-  const textX = STATEMENT.optionX + (STATEMENT.optionTextX - STATEMENT.optionX) * scale;
-  const width = STATEMENT.optionWidth - (textX - STATEMENT.optionTextX);
+function optionsPiece(context, options, first, optionSize, tuning, extras, ink, look) {
+  const scale = optionSize / look.optionSize;
+  const textX = look.optionX + (look.optionTextX - look.optionX) * scale;
+  const width = look.optionWidth - (textX - look.optionTextX);
   const offset = extras.length;
   const wordsAt = (index, capTop) => redrawn(
     textAt(`alternativa-${first + index + 1}`, options[index]?.words ?? "", {
       x: textX,
       capTop,
       size: optionSize,
-      weight: LIGHT,
-      color: ink("body-ink"),
-      lineHeight: STATEMENT.optionLineHeight,
+      weight: look.optionWeight,
+      color: ink(look.bodyInk),
+      lineHeight: look.optionLineHeight,
       width,
       letterSpacing: tuning.extras[offset + index] ?? 0
     }),
@@ -22562,13 +22588,13 @@ function optionsPiece(context, options, first, optionSize, tuning, extras, ink) 
     extras.push({ text: words, size: optionSize });
     return lineCount(context, words, option.words.split("\n"), optionSize, width);
   });
-  const leading = optionSize * STATEMENT.optionLineHeight;
+  const leading = optionSize * look.optionLineHeight;
   const topsFrom = (top) => {
     const tops = [];
     let at2 = top;
     for (const count of counts) {
       tops.push(at2);
-      at2 += (count - 1) * leading + STATEMENT.optionPitch * scale;
+      at2 += (count - 1) * leading + look.optionPitch * scale;
     }
     return tops;
   };
@@ -22578,12 +22604,12 @@ function optionsPiece(context, options, first, optionSize, tuning, extras, ink) 
     height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
     place: (top) => topsFrom(top).flatMap((capTop, index) => [
       textAt(`letra-${first + index + 1}`, options[index]?.letter ?? "", {
-        x: STATEMENT.optionX,
+        x: look.optionX,
         capTop,
         size: optionSize,
-        weight: MEDIUM,
-        color: ink("title-ink"),
-        lineHeight: STATEMENT.optionLineHeight
+        weight: look.letterWeight,
+        color: ink(look.letterInk),
+        lineHeight: look.optionLineHeight
       }),
       wordsAt(index, capTop)
     ])
@@ -22610,28 +22636,29 @@ function statementSegments(parts) {
   }
   return segments;
 }
-function statementGap(above, kind) {
-  if (above === void 0) return STATEMENT_GAPS.edge;
-  if (above === "picture" || kind === "picture") return STATEMENT_GAPS.picture;
-  if (above === "label" && kind === "body") return STATEMENT_GAPS.labelToBody;
-  return STATEMENT_GAPS.bodyToOptions;
+function statementGap(gaps, above, kind) {
+  if (above === void 0) return gaps.edge;
+  if (above === "picture" || kind === "picture") return gaps.picture;
+  if (above === "label" && kind === "body") return gaps.labelToBody;
+  return gaps.bodyToOptions;
 }
 var ROOM_TOP = 48 + 79;
-function fitStack(context, name, stackAt, bottom) {
-  const floor = numberValue(context, `${name}-floor`, NUMBER_DEFAULTS[`${name}-floor`]);
+function fitStack(context, name, stackAt, bottom, look) {
+  const defaults = look.numbers;
+  const floor = numberValue(context, `${name}-floor`, defaults[`${name}-floor`]);
   const ceiling = Math.max(
     floor,
-    numberValue(context, `${name}-ceiling`, NUMBER_DEFAULTS[`${name}-ceiling`])
+    numberValue(context, `${name}-ceiling`, defaults[`${name}-ceiling`])
   );
-  const gapFloor = numberValue(context, "gap-floor", NUMBER_DEFAULTS["gap-floor"]);
+  const gapFloor = numberValue(context, "gap-floor", defaults["gap-floor"]);
   const limits = {
-    shrink: numberValue(context, "orphan-shrink", NUMBER_DEFAULTS["orphan-shrink"]),
-    tracking: numberValue(context, "orphan-tracking", NUMBER_DEFAULTS["orphan-tracking"])
+    shrink: numberValue(context, "orphan-shrink", defaults["orphan-shrink"]),
+    tracking: numberValue(context, "orphan-tracking", defaults["orphan-tracking"])
   };
   const arrange = (tuning2) => {
     const stacked = stackAt(tuning2);
     const heights = stacked.pieces.map((piece) => piece.height);
-    const spaced = spaceByWeight({ top: ROOM_TOP, bottom, heights, weights: stacked.weights });
+    const spaced = spaceByWeight({ top: look.room.top, bottom, heights, weights: stacked.weights });
     return { stacked, spaced, fits: spaced.unit >= gapFloor };
   };
   const plainAt = (size) => ({ size, letterSpacing: 0, extras: [] });
@@ -22646,7 +22673,7 @@ function fitStack(context, name, stackAt, bottom) {
       code: "W_TEMPLATE_OVERFLOW",
       overflow: (gapFloor - arranged2.spaced.unit) * weight
     });
-    return drawn(arranged2.stacked, arranged2.spaced.tops);
+    return drawn(arranged2.stacked, arranged2.spaced.tops, look.room.top);
   }
   let tuning = plainAt(fitted);
   const orphans = [];
@@ -22686,17 +22713,24 @@ function fitStack(context, name, stackAt, bottom) {
   }
   for (const word of orphans) reportOrphan(context.report, word);
   const arranged = arrange(tuning);
-  return drawn(arranged.stacked, arranged.spaced.tops);
+  return drawn(arranged.stacked, arranged.spaced.tops, look.room.top);
 }
-function drawn(stacked, tops) {
-  return stacked.pieces.flatMap((piece, index) => piece.place(tops[index] ?? ROOM_TOP));
+function drawn(stacked, tops, top) {
+  return stacked.pieces.flatMap((piece, index) => piece.place(tops[index] ?? top));
 }
 function linesPiece(count, size, lineHeight, place) {
   return { height: (count - 1) * size * lineHeight + size * CAP_HEIGHT, place };
 }
-function picturePiece(picture, x, ink) {
-  const height = framedImage(picture, { x, y: 0 }, ink).foot;
-  return { height, place: (y) => framedImage(picture, { x, y }, ink).nodes };
+function picturePiece(picture, x, ink, look, text2) {
+  if (picture.bare) {
+    const height2 = bareImage(picture, { x: text2.x, y: 0 }, text2.w).foot;
+    return {
+      height: height2,
+      place: (y) => bareImage(picture, { x: text2.x, y: Math.round(y) }, text2.w).nodes
+    };
+  }
+  const height = framedImage(picture, { x, y: 0 }, ink, look).foot;
+  return { height, place: (y) => framedImage(picture, { x, y: Math.round(y) }, ink, look).nodes };
 }
 var FRAME = {
   w: 835,
@@ -22707,7 +22741,6 @@ var FRAME = {
   /** The radius of the white area's two left corners, where it meets the bar. */
   radius: 32
 };
-var FRAME_X = 123;
 var FRAME_SHAPES = { widest: 3, tallest: 1 };
 var PROPORTIONS = {
   "3x1": 3,
@@ -22733,22 +22766,24 @@ function slideParts(context) {
       parts[parts.length - 1] = { kind: "lines", lines: [...last.lines, ...kept] };
     else parts.push({ kind: "lines", lines: kept });
   };
-  const addPicture = (value) => {
-    if (value?.kind === "image")
-      parts.push({ kind: "picture", picture: { asset: value.asset, written } });
+  const addPicture = (slot) => {
+    const value = slot?.value;
+    if (value?.kind !== "image") return;
+    const bare = slot?.adjustments.some((each) => each.name === "sem-quadro") ?? false;
+    parts.push({ kind: "picture", picture: { asset: value.asset, written, bare } });
   };
   if (slide?.blocks === void 0) {
     if (slide?.value.kind === "rich-text") addLines(slide.value.text);
-    addPicture(context.slots["imagem"]?.value);
+    addPicture(context.slots["imagem"]);
     return parts;
   }
   for (const block2 of slide.blocks) {
     if (block2.kind === "text") addLines(block2.text);
-    else addPicture(block2.slot.value);
+    else addPicture(block2.slot);
   }
   return parts;
 }
-function framedImage(picture, at2, ink) {
+function framedImage(picture, at2, ink, look) {
   const width = FRAME.w - FRAME.side - FRAME.border;
   const natural = imageHeight(picture.asset, width, width / picture.written);
   const clamped = Math.min(
@@ -22756,6 +22791,7 @@ function framedImage(picture, at2, ink) {
     Math.max(width / FRAME_SHAPES.widest, natural)
   );
   const size = { w: width, h: Math.round(clamped) };
+  const fit = clamped === natural ? "cover" : "contain";
   const height = size.h + 2 * FRAME.border;
   const inside = { x: at2.x + FRAME.side, y: at2.y + FRAME.border };
   const r = FRAME.radius;
@@ -22763,7 +22799,7 @@ function framedImage(picture, at2, ink) {
     name,
     geometry: { kind: "path", d, fillRule: "nonzero" },
     size: { w: r, h: r },
-    fill: solid(ink("title-ink")),
+    fill: solid(ink(look.frameInk)),
     transform: { x: inside.x, y }
   });
   return {
@@ -22771,16 +22807,29 @@ function framedImage(picture, at2, ink) {
       rect({
         name: "moldura",
         size: { w: FRAME.w, h: height },
-        fill: solid(ink("title-ink")),
+        fill: solid(ink(look.frameInk)),
         effects: [SHADOW],
         transform: { x: at2.x, y: at2.y }
       }),
-      rect({ name: "fundo-imagem", size, fill: solid(ink("paper")), transform: inside }),
-      image({ name: "imagem", asset: picture.asset, size, fit: "contain", transform: inside }),
+      rect({ name: "fundo-imagem", size, fill: solid(ink(look.frameFill)), transform: inside }),
+      image({ name: "imagem", asset: picture.asset, size, fit, transform: inside }),
       corner("canto-superior", `M0 0H${r}A${r} ${r} 0 0 0 0 ${r}Z`, inside.y),
       corner("canto-inferior", `M0 0A${r} ${r} 0 0 0 ${r} ${r}H0Z`, inside.y + size.h - r)
     ],
     foot: at2.y + height
+  };
+}
+function bareImage(picture, at2, width) {
+  const natural = imageHeight(picture.asset, width, width / picture.written);
+  const clamped = Math.min(
+    width / FRAME_SHAPES.tallest,
+    Math.max(width / FRAME_SHAPES.widest, natural)
+  );
+  const size = { w: width, h: Math.round(clamped) };
+  const fit = clamped === natural ? "cover" : "contain";
+  return {
+    nodes: [image({ name: "imagem", asset: picture.asset, size, fit, transform: at2 })],
+    foot: at2.y + size.h
   };
 }
 var SHADOW = {
@@ -22793,21 +22842,39 @@ var SHADOW = {
 };
 var ANSWER = {
   x: 80,
-  labelSize: 45.06,
-  /** From the label's capitals to the answer's. */
+  label: { words: ANSWER_LABEL, size: 45.06, weight: BLACK, ink: "title-ink" },
   labelToAnswer: 59,
   answerSize: 103,
+  answerWeight: BLACK,
+  answerInk: "title-ink",
   bodySize: 68.09,
+  bodyWeight: LIGHT,
+  bodyInk: "body-ink",
   bodyLineHeight: 1.5,
-  bodyWidth: 840
+  bodyWidth: 840,
+  /**
+   * The answer slide's gaps as weights (Tyto ADR 0167), from the reference: 102 px from the
+   * logo to the label and 165 from the answer to the explanation, which stays the largest. The
+   * gap under the explanation is the one over the label, so the slide's middle is centred.
+   */
+  gaps: { edge: 102, foot: 102, headToBody: 165, picture: FRAME_GAP }
 };
-var ANSWER_GAPS = { edge: 102, headToBody: 165, picture: FRAME_GAP };
-function answerGap(above, kind) {
-  if (above === void 0) return ANSWER_GAPS.edge;
-  if (above === "picture" || kind === "picture") return ANSWER_GAPS.picture;
-  return ANSWER_GAPS.headToBody;
+var HOUSE = {
+  statement: STATEMENT,
+  answer: ANSWER,
+  room: { top: ROOM_TOP, bottom: FOOTER_TOP },
+  numbers: NUMBER_DEFAULTS,
+  bold: BOLD3,
+  frameInk: "title-ink",
+  frameFill: "paper"
+};
+function answerGap(gaps, above, kind) {
+  if (above === void 0) return gaps.edge;
+  if (above === "picture" || kind === "picture") return gaps.picture;
+  return gaps.headToBody;
 }
-function answer(context, ink, lift) {
+function answer(context, ink, lift, shared) {
+  const look = shared.answer;
   const continued = context.adjustments["continua"] === true;
   const parts = slideParts(context);
   let first;
@@ -22828,34 +22895,53 @@ function answer(context, ink, lift) {
     let text2;
     let bodies = 0;
     const add = (kind, piece) => {
-      weights.push(answerGap(above, kind));
+      weights.push(answerGap(look.gaps, above, kind));
       pieces.push(piece);
       above = kind;
     };
     if (!continued) {
       add("head", {
-        height: ANSWER.labelToAnswer + ANSWER.answerSize * CAP_HEIGHT,
+        height: look.labelToAnswer + look.answerSize * CAP_HEIGHT + (look.rule === void 0 ? 0 : look.rule.gap + look.rule.h),
         place: (capTop) => [
-          textAt("rotulo", ANSWER_LABEL, {
-            x: ANSWER.x,
+          textAt("rotulo", look.label.words, {
+            x: look.x,
             capTop,
-            size: ANSWER.labelSize,
-            weight: BLACK,
-            color: ink("title-ink")
+            size: look.label.size,
+            weight: look.label.weight,
+            color: ink(look.label.ink),
+            letterSpacing: (look.label.tracking ?? 0) * look.label.size
           }),
           textAt("resposta", first === void 0 ? "" : plain(first).trim(), {
-            x: ANSWER.x,
-            capTop: capTop + ANSWER.labelToAnswer,
-            size: ANSWER.answerSize,
-            weight: BLACK,
-            color: ink("title-ink")
-          })
+            x: look.x,
+            capTop: capTop + look.labelToAnswer,
+            size: look.answerSize,
+            weight: look.answerWeight,
+            color: ink(look.answerInk),
+            letterSpacing: (look.answerTracking ?? 0) * look.answerSize
+          }),
+          ...look.rule === void 0 ? [] : [
+            rect({
+              name: "regua",
+              size: { w: look.rule.w, h: look.rule.h },
+              fill: solid(ink(look.rule.ink)),
+              transform: {
+                x: look.rule.x,
+                y: capTop + look.labelToAnswer + look.answerSize * CAP_HEIGHT + look.rule.gap
+              }
+            })
+          ]
         ]
       });
     }
     for (const part of rest) {
       if (part.kind === "picture") {
-        add("picture", picturePiece(part.picture, ANSWER.x, ink));
+        add(
+          "picture",
+          picturePiece(part.picture, look.x, ink, shared, {
+            x: look.bodyX ?? look.x,
+            w: look.bodyWidth
+          })
+        );
         continue;
       }
       bodies += 1;
@@ -22863,30 +22949,36 @@ function answer(context, ink, lift) {
       const main = number4 === 1;
       const extra = extras.length;
       const size = tuning.size;
-      const style2 = { font: FACE2, size, weight: LIGHT, color: ink("body-ink") };
+      const style2 = { font: FACE2, size, weight: look.bodyWeight, color: ink(look.bodyInk) };
       const draftAt = (capTop) => redrawn(
-        richAt(main ? "explicacao" : `explicacao-${number4}`, part.lines, style2, {
-          x: ANSWER.x,
-          capTop,
-          lineHeight: ANSWER.bodyLineHeight,
-          width: ANSWER.bodyWidth,
-          letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
-        }),
+        richAt(
+          main ? "explicacao" : `explicacao-${number4}`,
+          part.lines,
+          style2,
+          {
+            x: look.bodyX ?? look.x,
+            capTop,
+            lineHeight: look.bodyLineHeight,
+            width: look.bodyWidth,
+            letterSpacing: main ? tuning.letterSpacing : tuning.extras[extra] ?? 0
+          },
+          runsOptions(shared, ink)
+        ),
         main ? tuning.runs : tuning.extraRuns?.[extra]
       );
       const draft = draftAt(0);
       if (main) text2 = draft;
       else extras.push({ text: draft, size });
-      const count = lineCount(context, draft, part.lines, size, ANSWER.bodyWidth);
+      const count = lineCount(context, draft, part.lines, size, look.bodyWidth);
       add(
         "body",
-        linesPiece(count, size, ANSWER.bodyLineHeight, (capTop) => [draftAt(capTop)])
+        linesPiece(count, size, look.bodyLineHeight, (capTop) => [draftAt(capTop)])
       );
     }
-    weights.push(ANSWER_GAPS.edge);
+    weights.push(look.gaps.foot);
     return { pieces, weights, ...text2 === void 0 ? {} : { text: text2 }, extras };
   };
-  return fitStack(context, "explanation", stackAt, FOOTER_TOP - lift);
+  return fitStack(context, "explanation", stackAt, shared.room.bottom - lift, shared);
 }
 var SIGN_OFF = {
   titleTop: 375,
@@ -22993,6 +23085,17 @@ function arrow(box, color2) {
     transform: { x: box.x, y: box.y }
   });
 }
+function runsOptions(look, ink) {
+  const marks = look.marks;
+  if (marks === void 0) return { bold: look.bold };
+  return {
+    bold: look.bold,
+    mark: (key, value) => {
+      const name = key === "cor" ? marks[value] : void 0;
+      return name === void 0 ? void 0 : { color: ink(name), weight: look.bold };
+    }
+  };
+}
 function textAt(name, words, placed) {
   const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
   const [first = "", ...others] = words.split("\n");
@@ -23002,10 +23105,10 @@ function textAt(name, words, placed) {
     placed
   );
 }
-function richAt(name, written, style2, box) {
+function richAt(name, written, style2, box, options = { bold: BOLD3 }) {
   const runs = written.flatMap((line, index) => [
     ...index > 0 ? [lineBreak()] : [],
-    ...runsOf(line, style2, { bold: BOLD3 })
+    ...runsOf(line, style2, options)
   ]);
   return textRuns(name, runs.length === 0 ? [run("", style2)] : runs, { ...box, size: style2.size });
 }
@@ -23052,19 +23155,352 @@ function slotText(context, name, fallback) {
   return words === "" ? fallback : words;
 }
 
+// src/engenharia.ts
+var DEFAULT_SIGN_OFF_TITLE2 = "Gostou do conte\xFAdo?";
+var BUTTON_WORD = "Confira";
+var COLOR_DEFAULTS2 = {
+  /** The cover's and the sign-off's colour, where no picture covers it. */
+  deep: "#204e72",
+  /** The cover's title, rule, button and "+", and the sign-off's title. */
+  accent: "#1d9ad5",
+  /** The words, logo, signature and icons on the deep colour. */
+  "on-deep": "#ffffff",
+  /** The paper of the statement and the answer. */
+  paper: "#ffffff",
+  /** "Gabarito", the answer, its rule, the arrows and a picture's frame. */
+  "title-ink": "#204e72",
+  /** The options' letters. */
+  "letter-ink": "#004d74",
+  /** The statement, the options' words, the explanation and the signature on paper. */
+  "body-ink": "#4d4d4d",
+  /** The "+" on paper. */
+  "ornament-ink": "#cccccc",
+  /** The four `{cor:…}` highlights, at the bold's weight. */
+  "highlight-azul": "#2f628a",
+  "highlight-vermelho": "#873131",
+  "highlight-verde": "#39902e",
+  "highlight-ocre": "#8a662d"
+};
+var NUMBER_DEFAULTS2 = {
+  "exam-floor": 56,
+  "exam-ceiling": 76,
+  "statement-floor": 28,
+  "statement-ceiling": 40,
+  "explanation-floor": 32,
+  "explanation-ceiling": 56,
+  "gap-floor": NUMBER_DEFAULTS["gap-floor"],
+  "orphan-shrink": NUMBER_DEFAULTS["orphan-shrink"],
+  "orphan-tracking": NUMBER_DEFAULTS["orphan-tracking"]
+};
+var MARKS = {
+  azul: "highlight-azul",
+  vermelho: "highlight-vermelho",
+  verde: "highlight-verde",
+  ocre: "highlight-ocre"
+};
+var FOOTER_TOP2 = 1222;
+var SLACK = 1 / 3;
+var gap = (pixels) => pixels * SLACK;
+var LOOK = {
+  room: { top: 134, bottom: FOOTER_TOP2 },
+  numbers: NUMBER_DEFAULTS2,
+  bold: BOLD3,
+  marks: MARKS,
+  frameInk: "title-ink",
+  frameFill: "paper",
+  statement: {
+    x: 125,
+    bodySize: 40,
+    bodyWeight: MEDIUM,
+    bodyInk: "body-ink",
+    bodyLineHeight: 1.5,
+    bodyWidth: 760,
+    optionX: 125,
+    optionTextX: 162,
+    optionSize: 32,
+    optionLineHeight: 1.5,
+    optionWidth: 726,
+    optionPitch: 78,
+    optionWeight: LIGHT,
+    letterWeight: MEDIUM,
+    letterInk: "letter-ink",
+    gaps: {
+      edge: gap(207),
+      foot: gap(276.2),
+      labelToBody: gap(60),
+      bodyToOptions: gap(61.6),
+      picture: gap(FRAME_GAP)
+    },
+    frameX: 117
+  },
+  answer: {
+    x: 75,
+    bodyX: 85,
+    label: { words: "Gabarito", size: 63.8, weight: BOLD3, ink: "title-ink", tracking: 0.02 },
+    labelToAnswer: 87.75,
+    answerSize: 101.9,
+    answerWeight: BOLD3,
+    answerInk: "title-ink",
+    answerTracking: 0.02,
+    rule: { gap: 45, x: 80, w: 921, h: 2, ink: "title-ink" },
+    bodyWeight: LIGHT,
+    bodyInk: "body-ink",
+    bodyLineHeight: 1.5,
+    bodyWidth: 916,
+    gaps: {
+      edge: gap(107),
+      foot: gap(447),
+      headToBody: gap(120),
+      picture: gap(FRAME_GAP)
+    }
+  }
+};
+var EXAM2 = {
+  x: 82,
+  capTop: 494,
+  lineHeight: 90 / 75.4,
+  width: 903,
+  bottom: 978 - 80,
+  weight: MEDIUM,
+  estimatedAdvance: 0.6,
+  tracking: 0.04
+};
+var build2 = (context) => {
+  const ink = (name) => colorValue(context, name, COLOR_DEFAULTS2[name]);
+  const accent = accentOf(context.brand, ink("accent"));
+  const role = roleOf(context);
+  const last = context.artwork.index === context.artwork.count - 1;
+  const page = sealed(context.size, sealOf(context));
+  const lift = context.size.h - page.size.h;
+  const signature = (color2) => footSignature(context.brand, SIGNATURE_TOP - lift, color2);
+  const onward = (color2) => last ? [] : [arrow({ ...BODY_ARROW, y: BODY_ARROW.y - lift }, color2)];
+  if (role === "capa" || role === "fecho") {
+    const written = role === "capa" ? context.slots["fundo"]?.value : void 0;
+    const picture = role !== "capa" ? void 0 : written?.kind === "image" ? written.asset : imageValue(context, "cover-background");
+    const logo = role === "capa" ? COVER_LOGO : SIGN_OFF_LOGO;
+    return frame({
+      format: context.format,
+      size: context.size,
+      idPrefix: context.idPrefix,
+      background: solid(ink("deep")),
+      children: [
+        ...picture === void 0 ? [] : [image({ name: "fundo", asset: picture, size: context.size, fit: "cover" })],
+        at(logo.x, logo.y, drawLogo(context.brand, LOGO_HEIGHT, oneInk(ink("on-deep")))),
+        ...role === "capa" ? [
+          ...cover2(context, ink, accent, lift),
+          ...last ? [] : coverButton({ fill: accent, ink: ink("deep") }),
+          ...ornaments(COVER_ORNAMENTS, accent)
+        ] : [
+          signOffTitle(context, accent),
+          ...iconSignOff({ ink: ink("on-deep"), inside: ink("deep") })
+        ],
+        signature(ink("on-deep")),
+        ...page.seal
+      ]
+    });
+  }
+  const answerSlide = role === "resposta";
+  return frame({
+    format: context.format,
+    size: context.size,
+    idPrefix: context.idPrefix,
+    background: solid(ink("paper")),
+    children: [
+      ...answerSlide ? answer(context, ink, lift, LOOK) : statement(context, ink, lift, LOOK),
+      ...ornaments(answerSlide ? ANSWER_ORNAMENTS : STATEMENT_ORNAMENTS, ink("ornament-ink")),
+      signature(ink("body-ink")),
+      ...onward(ink("title-ink")),
+      ...page.seal
+    ]
+  });
+};
+var LOGO_HEIGHT = 59;
+var COVER_LOGO = { x: 51, y: 76 };
+var SIGN_OFF_LOGO = { x: 78, y: 78 };
+var COVER_TITLE = { x: 77, capTop: 263, size: 76.9 };
+var COVER_RULE = { x: 80, y: 380, w: 823, h: 2 };
+function cover2(context, ink, accent, lift) {
+  return [
+    // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
+    // Black, the maintainer's call (2026-11-04).
+    textAt("titulo", slotText(context, "titulo", DEFAULT_TITLE), {
+      x: COVER_TITLE.x,
+      capTop: COVER_TITLE.capTop,
+      size: COVER_TITLE.size,
+      weight: BLACK,
+      color: accent,
+      width: SLIDE_WIDTH - COVER_TITLE.x - 40
+    }),
+    rect({
+      name: "regua",
+      size: { w: COVER_RULE.w, h: COVER_RULE.h },
+      fill: solid(accent),
+      transform: { x: COVER_RULE.x, y: COVER_RULE.y }
+    }),
+    examLines(context, ink("on-deep"), lift, EXAM2, NUMBER_DEFAULTS2)
+  ];
+}
+var BUTTON = {
+  x: 80,
+  y: 979,
+  w: 280,
+  h: 70,
+  wordX: 113,
+  wordCapTop: 999.5,
+  wordSize: 38.9,
+  arrow: { x: 269, y: 998, w: 57, h: 37, shaft: 10 }
+};
+function coverButton(inks) {
+  return [
+    rect({
+      name: "botao",
+      size: { w: BUTTON.w, h: BUTTON.h },
+      radius: BUTTON.h / 2,
+      fill: solid(inks.fill),
+      transform: { x: BUTTON.x, y: BUTTON.y }
+    }),
+    textAt("botao-texto", BUTTON_WORD, {
+      x: BUTTON.wordX,
+      capTop: BUTTON.wordCapTop,
+      size: BUTTON.wordSize,
+      weight: BOLD3,
+      color: inks.ink
+    }),
+    arrow(BUTTON.arrow, inks.ink)
+  ];
+}
+var COVER_ORNAMENTS = [
+  { x: 974, y: 215 },
+  { x: 974, y: 1109 }
+];
+var STATEMENT_ORNAMENTS = [
+  { x: 975, y: 108 },
+  { x: 80, y: 1107 }
+];
+var ANSWER_ORNAMENTS = [
+  { x: 827, y: 223 },
+  { x: 80, y: 1107 }
+];
+var PLUS = { size: 26, bar: 6 };
+function ornaments(places, color2) {
+  const near = (PLUS.size - PLUS.bar) / 2;
+  const far = near + PLUS.bar;
+  const s = PLUS.size;
+  const d = `M${near} 0H${far}V${near}H${s}V${far}H${far}V${s}H${near}V${far}H0V${near}H${near}Z`;
+  return places.map(
+    (place, index) => vector({
+      name: `mais-${index + 1}`,
+      geometry: { kind: "path", d, fillRule: "nonzero" },
+      size: { w: s, h: s },
+      fill: solid(color2),
+      transform: place
+    })
+  );
+}
+var BODY_ARROW = { x: 853, y: FOOTER_TOP2, w: 148, h: 37, shaft: 10 };
+var SIGNATURE_TOP = 1229.5;
+var SIGNATURE2 = { size: 25.66, letterSpacing: 25.66 * 0.2 };
+function footSignature(brand, capTop, color2) {
+  return textAt("assinatura", signatureOf(brand), {
+    x: 0,
+    capTop,
+    size: SIGNATURE2.size,
+    weight: LIGHT,
+    color: color2,
+    width: SLIDE_WIDTH,
+    align: "center",
+    letterSpacing: SIGNATURE2.letterSpacing
+  });
+}
+var SIGN_OFF_TITLE = { capTop: 343.5, size: 84.6 };
+function signOffTitle(context, color2) {
+  const [written] = slideRichLines(context);
+  const fromSlot = slotText(context, "fecho", "").split("\n")[0]?.trim() ?? "";
+  const words = written !== void 0 ? plain(written).trim() : fromSlot !== "" ? fromSlot : DEFAULT_SIGN_OFF_TITLE2;
+  return textAt("fecho-titulo", words, {
+    x: 0,
+    capTop: SIGN_OFF_TITLE.capTop,
+    size: SIGN_OFF_TITLE.size,
+    weight: BOLD3,
+    color: color2,
+    width: SLIDE_WIDTH,
+    align: "center"
+  });
+}
+var ICON_ROWS = [
+  {
+    name: "curtir",
+    icon: { x: 299, y: 553, w: 69, h: 60 },
+    d: "M34.5 56.5L7 30C0 23 1.5 8 13 4.5C22 2 30 6 34.5 13C39 6 47 2 56 4.5C67.5 8 69 23 62 30Z",
+    words: "Deixe um like",
+    weight: REGULAR,
+    capTop: 573.7
+  },
+  {
+    name: "marcar",
+    icon: { x: 302, y: 667, w: 66, h: 61 },
+    d: "M45 49.5C41.5 51 37.5 51.5 33 51.5C16 51.5 2.5 41 2.5 27C2.5 13 16 2.5 33 2.5C50 2.5 63.5 13 63.5 27C63.5 35.5 58.5 42.5 51 46.5L55.5 58.5Z",
+    words: "Marque algu\xE9m que\npossa gostar do conte\xFAdo.",
+    weight: REGULAR,
+    capTop: 663.7
+  },
+  {
+    name: "salvar",
+    icon: { x: 313, y: 798, w: 47, h: 63 },
+    d: "M2.5 2.5H44.5V60.5L23.5 43.5L2.5 60.5Z",
+    words: "Salve para fixar\no conte\xFAdo",
+    weight: BOLD3,
+    capTop: 797.7
+  },
+  {
+    name: "compartilhar",
+    icon: { x: 308, y: 927, w: 54, h: 54 },
+    d: "M51.5 2.5L2.5 21L24 30L33 51.5Z M24 30L51.5 2.5",
+    words: "Compartilhe com\nos amigos.",
+    weight: REGULAR,
+    capTop: 919.7
+  }
+];
+var ROW_TEXT = { x: 443, size: 29.98, lineHeight: 38.68 / 29.98, letterSpacing: 0.6 };
+var ICON_STROKE = 4.5;
+function iconSignOff(inks) {
+  return ICON_ROWS.flatMap((row) => [
+    vector({
+      name: row.name,
+      geometry: { kind: "path", d: row.d, fillRule: "nonzero" },
+      size: { w: row.icon.w, h: row.icon.h },
+      fill: solid(inks.inside),
+      stroke: { paint: solid(inks.ink), width: ICON_STROKE, align: "center" },
+      transform: { x: row.icon.x, y: row.icon.y }
+    }),
+    textAt(`${row.name}-texto`, row.words, {
+      x: ROW_TEXT.x,
+      capTop: row.capTop,
+      size: ROW_TEXT.size,
+      weight: row.weight,
+      color: inks.ink,
+      lineHeight: ROW_TEXT.lineHeight,
+      letterSpacing: ROW_TEXT.letterSpacing
+    })
+  ]);
+}
+
 // src/index.ts
-var BUILDS = { "questao-estrategica": build };
+var BUILDS = {
+  "questao-estrategica": build,
+  "questao-engenharia": build2
+};
 function activate(host) {
   host.registerTemplatePack({
     id: "questao-estrategica",
     templates: [],
     directory: "templates",
     build: (template, context) => {
-      const build2 = BUILDS[template];
-      if (build2 === void 0) {
+      const build3 = BUILDS[template];
+      if (build3 === void 0) {
         throw new Error(`questao-estrategica draws no template named '${template}'.`);
       }
-      return build2(context);
+      return build3(context);
     }
   });
 }

@@ -42,6 +42,9 @@ adjustments:
   resposta: { type: flag, applies: [lamina] }
   fecho: { type: flag, applies: [lamina] }
   continua: { type: flag, applies: [lamina] }
+  # `::imagem {sem-quadro} ./x.png`: the picture alone, at the words' left edge and width, with no
+  # border, bar or shadow (TYTO-608). Without it the picture is framed.
+  sem-quadro: { type: flag, applies: [imagem] }
   # `proporcao`, a picture's shape, width x height, is what v0.2.0 needed because Tyto handed a
   # template no image's size: since Tyto 0.12 the file's size wins, and the proportion written
   # is used only for a picture on the slide the host could not measure.

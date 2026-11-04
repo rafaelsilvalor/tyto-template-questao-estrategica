@@ -10,6 +10,24 @@ hands them to the template from the brand kit installed on the machine, under th
 brand `marinho`, and without one it draws placeholders (Tyto ADR 0063, ADR 0065). The cover's
 picture, the seal and every image are the brief's. The example brief is invented copy.
 
+## Two templates, one brief
+
+The plugin draws two templates from the same code:
+
+- **`questao-estrategica`**, the house's frame: "Enunciado:" over the statement, "Resposta /
+  Letra B", a slide number and a like bar.
+- **`questao-engenharia`** (TYTO-608), the engineering vertical's frame: a "Confira" button
+  and two "+" on the cover, no heading, logo or number on the middle slides, "Gabarito" with
+  a rule under the answer, the signature at every slide's foot, and a sign-off of four icon
+  rows. Its statement and options are set Medium 40 and 32 px, its explanation Light 56 px.
+
+Both read the same brief: change its `template:` line and nothing else. The statement, the
+options, the answer, the explanation and the pictures are shared code (`src/template.ts`),
+which each template sets with its own numbers (`Look`); only the frame differs
+(`src/engenharia.ts`). In `questao-engenharia`, `**x**` sets words in Bold and
+`{cor:azul|vermelho|verde|ocre}x{/}` in Bold and a colour, in the statement and the
+explanation; an option's words take neither yet.
+
 ## Install into Tyto
 
 A plugin file pins the template to a release (Tyto ADR 0151). Save this as
@@ -96,6 +114,11 @@ selo: ./selo.png
   the size off the file, ADR 0158), from a 3:1 band to a square: a wider picture gets a 3:1
   frame and a taller one a square, the picture fitted whole inside with paper beside it. The
   frame casts the reference's shadow itself (a `spread` of −20 px, Tyto TYTO-500 and TYTO-501).
+- **A picture with no frame**, in both templates (TYTO-608): `::imagem {sem-quadro} ./figura.png`
+  draws the picture alone, with no border, bar or shadow, at the words' left edge and width,
+  as tall as its shape makes it between the same 3:1 and square. The mark goes before the
+  path, as `::lamina {capa}`: written after it, the brief language does not read it as a
+  mark, and the picture keeps its frame. Each `::imagem` takes its own.
 - **`{proporcao: …}` is no longer needed.** Briefs that write it still render, without a
   warning: the file's size wins, and the proportion written — `3x1`, `5x2`, `7x3`, `2x1`
   (default), `16x9`, `3x2`, `4x3` or `1x1` — is used only for a picture on the slide Tyto could

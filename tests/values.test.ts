@@ -4,7 +4,12 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { COLOR_DEFAULTS, HIGHLIGHT_DEFAULTS, NUMBER_DEFAULTS } from '../src/template.js';
+import {
+  COLOR_DEFAULTS,
+  DEEP_MARK_DEFAULTS,
+  HIGHLIGHT_DEFAULTS,
+  NUMBER_DEFAULTS,
+} from '../src/template.js';
 import { build } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
@@ -29,6 +34,7 @@ const FALLBACKS: Record<string, unknown> = {
   ...COLOR_DEFAULTS,
   ...NUMBER_DEFAULTS,
   ...HIGHLIGHT_DEFAULTS,
+  ...DEEP_MARK_DEFAULTS,
 };
 
 const html = async (values?: SuppliedValues): Promise<string> => {

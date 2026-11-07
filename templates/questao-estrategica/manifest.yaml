@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.6.1
+version: 0.6.2
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -93,6 +93,13 @@ values:
   mark-cor-vermelho: { type: color, default: '#873131' }
   mark-cor-verde: { type: color, default: '#39902e' }
   mark-cor-ocre: { type: color, default: '#8a662d' }
+  # The same marks on the cover, on the cover's `deep`, `#00153d` (TYTO-623): each swatch's hue at the
+  # darkest lightness that reads at a WCAG contrast of 4.5:1 there. `mark-cor-*` stays the
+  # colour on paper.
+  deep-mark-cor-azul: { type: color, default: '#4085bb' }
+  deep-mark-cor-vermelho: { type: color, default: '#c66262' }
+  deep-mark-cor-verde: { type: color, default: '#3a922f' }
+  deep-mark-cor-ocre: { type: color, default: '#a37835' }
   # The cover's exam lines are set at the largest size between these that keeps them in their
   # room, so a short title grows and a long one shrinks. Below the floor it overflows, reported.
   exam-floor: { type: length, default: 56, min: 32, max: 112 }

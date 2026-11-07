@@ -178,6 +178,57 @@ export const HIGHLIGHT_DEFAULTS = {
   ),
 } as Readonly<Record<string, number | string>>;
 
+/** A mark name's colour, one per `{cor:…}` name. */
+export type MarkColors = Readonly<Record<keyof typeof MARK_COLORS, string>>;
+
+/**
+ * The marks' colours on the cover's `deep` (TYTO-623). The swatches were chosen for white
+ * paper and two of them nearly vanish on `#00153d`; each here keeps its swatch's hue and is
+ * the darkest lightness that reads at a WCAG contrast of 4.5:1 or more on `deep`
+ * (`tests/contrast.test.ts` pins it): azul 2.75 → 4.50, vermelho 2.14 → 4.53, verde
+ * 4.43 → 4.54, ocre 3.42 → 4.51.
+ */
+export const DEEP_MARK_COLORS: MarkColors = {
+  azul: '#4085bb',
+  vermelho: '#c66262',
+  verde: '#3a922f',
+  ocre: '#a37835',
+};
+
+/**
+ * The declared values of the marks on the deep colour, `deep-mark-cor-<name>`: the place is
+ * `deep`, so a configuration that changes `deep` changes these beside it, and `mark-cor-<name>`
+ * stays the colour on paper.
+ */
+export function deepMarkDefaults(colors: MarkColors): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    Object.entries(colors).map(([name, color]) => [`deep-mark-cor-${name}`, color]),
+  );
+}
+
+/** The declared values of the marks on the cover's `deep`, each the default above. */
+export const DEEP_MARK_DEFAULTS = deepMarkDefaults(DEEP_MARK_COLORS);
+
+/**
+ * The marks' colours laid over a text's highlights where it stands on the deep colour, each
+ * under its declared `deep-mark-cor-<name>` (the kit's `highlights.with()`: the family's
+ * `like: 'bold'` and every other style stay).
+ */
+export function marksOnDeep(context: TemplateContext, colors: MarkColors): HighlightSpec {
+  return {
+    marks: {
+      cor: {
+        values: Object.fromEntries(
+          Object.entries(colors).map(([name, color]) => [
+            name,
+            { color: colorValue(context, `deep-mark-cor-${name}`, color) },
+          ]),
+        ),
+      },
+    },
+  };
+}
+
 /**
  * CircularXX's vertical metrics, in em, from its `OS/2` table and the same in every weight: a
  * line of height `lineHeight` puts the content area in its middle, so the capitals start this
@@ -271,14 +322,20 @@ export const build: TemplateBuild = (context: TemplateContext) => {
 
 function cover(context: TemplateContext, ink: Ink, last: boolean, lift: number): NodeDraft[] {
   return [
-    richTextAt(context, 'titulo', slotRichLines(context, 'titulo', DEFAULT_TITLE), {
-      x: 82,
-      capTop: 273,
-      size: 86.17,
-      weight: BLACK,
-      color: ink('accent'),
-      width: SLIDE_WIDTH - 85 - 40,
-    }),
+    richTextAt(
+      context,
+      'titulo',
+      slotRichLines(context, 'titulo', DEFAULT_TITLE),
+      {
+        x: 82,
+        capTop: 273,
+        size: 86.17,
+        weight: BLACK,
+        color: ink('accent'),
+        width: SLIDE_WIDTH - 85 - 40,
+      },
+      DEEP_MARK_COLORS,
+    ),
     rect({
       name: 'regua',
       size: { w: 919, h: 10 },
@@ -347,7 +404,8 @@ const EXAM = {
  * that keeps them in their room: a short title grows to fill it and a long one shrinks, so the
  * cover keeps a balance of words and empty space (the maintainer, 2026-10-30). First the size
  * that keeps every line as the brief writes it; when none does, the size at which the lines may
- * wrap between words; when not even the floor fits, the floor, reported as an overflow.
+ * wrap between words; when not even the floor fits, the floor, reported as an overflow. They
+ * stand on the deep colour, so their marks take `deep`'s colours.
  */
 export function examLines(
   context: TemplateContext,
@@ -355,6 +413,7 @@ export function examLines(
   lift: number,
   exam: ExamLook = EXAM,
   numbers: Readonly<Record<'exam-floor' | 'exam-ceiling', number>> = NUMBER_DEFAULTS,
+  deep: MarkColors = DEEP_MARK_COLORS,
 ): NodeDraft {
   const rich = slideRichLines(context).map(trimmed);
   const written = rich.map((line) => plain(line));
@@ -362,16 +421,22 @@ export function examLines(
   const ceiling = Math.max(floor, numberValue(context, 'exam-ceiling', numbers['exam-ceiling']));
   const bottom = exam.bottom - lift;
   const draft = (size: number) =>
-    richTextAt(context, 'prova', rich, {
-      x: exam.x,
-      capTop: exam.capTop,
-      size,
-      weight: exam.weight,
-      color,
-      lineHeight: exam.lineHeight,
-      width: exam.width,
-      ...(exam.tracking === undefined ? {} : { letterSpacing: exam.tracking * size }),
-    });
+    richTextAt(
+      context,
+      'prova',
+      rich,
+      {
+        x: exam.x,
+        capTop: exam.capTop,
+        size,
+        weight: exam.weight,
+        color,
+        lineHeight: exam.lineHeight,
+        width: exam.width,
+        ...(exam.tracking === undefined ? {} : { letterSpacing: exam.tracking * size }),
+      },
+      deep,
+    );
   const layout = (size: number): { readonly lines: number; readonly width: number } => {
     const node = draft(size);
     const measured = node.kind === 'text' ? context.measure(node) : undefined;
@@ -1597,17 +1662,20 @@ export function textAt(name: string, words: string, placed: Placed): TextDraft {
  *
  * Those texts are Bold or Black already, and the highlight's Bold would draw a Black title
  * lighter: in a text at least as heavy, `**…**` and the marks keep the text's own weight, and a
- * colour mark is what shows.
+ * colour mark is what shows. A text on the deep colour passes `deep`, the marks' colours there.
  */
 export function richTextAt(
   context: TemplateContext,
   name: string,
   written: readonly RichText[],
   placed: Placed,
+  deep?: MarkColors,
   spec: HighlightSpec = HIGHLIGHTS,
 ): TextDraft {
   const style = { font: FACE, size: placed.size, weight: placed.weight, color: placed.color };
-  const highlights = highlightsFromValues(context, spec, undefined, FACE_WEIGHTS);
+  const configured = highlightsFromValues(context, spec, undefined, FACE_WEIGHTS);
+  // On the deep colour the marks take their `deep-mark-cor-*` colours (TYTO-623).
+  const highlights = deep === undefined ? configured : configured.with(marksOnDeep(context, deep));
   const weight = highlights.spec.bold?.weight ?? BOLD;
   const kept =
     placed.weight >= weight ? highlights.with({ bold: { weight: placed.weight } }) : highlights;

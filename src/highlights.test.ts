@@ -4,8 +4,13 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { build as buildEngineering } from './engenharia.js';
-import { BLACK, MARK_COLORS, build as buildHouse } from './template.js';
+import { DEEP_MARK_COLORS as ENGINEERING_DEEP, build as buildEngineering } from './engenharia.js';
+import {
+  BLACK,
+  DEEP_MARK_COLORS as HOUSE_DEEP,
+  MARK_COLORS,
+  build as buildHouse,
+} from './template.js';
 
 import type { Frame, SceneNode, TemplateBuild, TextNode } from '@tyto/core';
 import type { CompileTemplateOptions } from '@tyto/template-kit/testing';
@@ -31,6 +36,12 @@ const TEMPLATES = {
 } as const;
 
 type Name = keyof typeof TEMPLATES;
+
+/** The marks' colours on each template's deep colour, the cover's and the engineering sign-off's. */
+const DEEP: Record<Name, typeof HOUSE_DEEP> = {
+  'questao-estrategica': HOUSE_DEEP,
+  'questao-engenharia': ENGINEERING_DEEP,
+};
 
 async function slides(
   name: Name,
@@ -89,7 +100,8 @@ describe.each(Object.keys(TEMPLATES) as Name[])('%s', (name) => {
     const title = textNamed(cover, 'titulo');
 
     expect(words(title)).toBe('Questão de fixação');
-    expect(runOf(title, 'fixação')).toEqual({ color: MARK_COLORS.azul, weight: BLACK });
+    // On the deep colour, the mark's deep colour (TYTO-623).
+    expect(runOf(title, 'fixação')).toEqual({ color: DEEP[name].azul, weight: BLACK });
     // The title is Black: its `**…**` keeps that weight and never draws lighter.
     const weights = (title?.runs ?? []).flatMap((piece) =>
       piece.kind === 'text' ? [piece.weight] : [],
@@ -102,7 +114,7 @@ describe.each(Object.keys(TEMPLATES) as Name[])('%s', (name) => {
     const exam = textNamed(cover, 'prova');
 
     expect(words(exam)).toBe('QUINTEX 2026\nVale Alto');
-    expect(runOf(exam, 'QUINTEX')?.color).toBe(MARK_COLORS.vermelho);
+    expect(runOf(exam, 'QUINTEX')?.color).toBe(DEEP[name].vermelho);
   });
 
   it('reads {cor:…} in the sign-off’s title', async () => {
@@ -116,7 +128,25 @@ describe.each(Object.keys(TEMPLATES) as Name[])('%s', (name) => {
           )
         : await slides(name, '', `${COVER}::lamina {fecho}\n  {cor:verde}Valeu!{/}`);
 
-    expect(runOf(textNamed(closing, 'fecho-titulo'), 'Valeu!')?.color).toBe(MARK_COLORS.verde);
+    // The house's sign-off is on paper; the engineering one on the deep colour (TYTO-623).
+    const green = name === 'questao-estrategica' ? MARK_COLORS.verde : DEEP[name].verde;
+    expect(runOf(textNamed(closing, 'fecho-titulo'), 'Valeu!')?.color).toBe(green);
+  });
+
+  it('takes a configured deep-mark-cor-* on the deep colour, and mark-cor-* on paper', async () => {
+    const values = {
+      'deep-mark-cor-vermelho': { value: '#123456' },
+      'mark-cor-vermelho': { value: '#654321' },
+    };
+    const [cover, statement] = await slides(
+      name,
+      '',
+      `${COVER}::lamina\n  Qual {cor:vermelho}viga{/}?\n  A) Uma.\n\n::lamina {fecho}`,
+      { values },
+    );
+
+    expect(runOf(textNamed(cover, 'prova'), 'QUINTEX')?.color).toBe('#123456');
+    expect(runOf(textNamed(statement, 'enunciado'), 'viga')?.color).toBe('#654321');
   });
 
   it('keeps a currency sign with its amount and a number with its percent', async () => {

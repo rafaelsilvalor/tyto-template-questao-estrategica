@@ -35,6 +35,7 @@ import {
   SLIDE_WIDTH,
   answer,
   arrow,
+  deepMarkDefaults,
   examLines,
   richTextAt,
   roleOf,
@@ -45,7 +46,7 @@ import {
   trimmed,
 } from './template.js';
 
-import type { ArrowBox, ExamLook, Ink, Look } from './template.js';
+import type { ArrowBox, ExamLook, Ink, Look, MarkColors } from './template.js';
 import type { BrandKit, TemplateBuild, TemplateContext } from '@tyto/core';
 import type { NodeDraft, TextDraft } from '@tyto/core/template';
 
@@ -84,6 +85,23 @@ export const COLOR_DEFAULTS = {
 } as const;
 
 type ColorName = keyof typeof COLOR_DEFAULTS;
+
+/**
+ * The marks' colours on `deep`, the cover's and the sign-off's `#204e72` (TYTO-623). The
+ * swatches were chosen for white paper, and on this blue azul all but vanished (1.35:1). Each
+ * here keeps its swatch's hue and is the darkest lightness that reads at a WCAG contrast of
+ * 4.5:1 or more on `deep` (`tests/contrast.test.ts` pins it): azul 1.35 → 4.53, vermelho
+ * 1.05 → 4.50, verde 2.17 → 4.53, ocre 1.68 → 4.50. Declared as `deep-mark-cor-<name>`.
+ */
+export const DEEP_MARK_COLORS: MarkColors = {
+  azul: '#99bfdc',
+  vermelho: '#e1adad',
+  verde: '#73cf67',
+  ocre: '#d6b580',
+};
+
+/** The declared values of the marks on `deep`, each the default above. */
+export const DEEP_MARK_DEFAULTS = deepMarkDefaults(DEEP_MARK_COLORS);
 
 /**
  * The numbers a configuration may change. The ceilings are the reference's sizes, so its copy
@@ -266,21 +284,27 @@ function cover(context: TemplateContext, ink: Ink, accent: string, lift: number)
   return [
     // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
     // Black, the maintainer's call (2026-11-04).
-    richTextAt(context, 'titulo', slotRichLines(context, 'titulo', DEFAULT_TITLE), {
-      x: COVER_TITLE.x,
-      capTop: COVER_TITLE.capTop,
-      size: COVER_TITLE.size,
-      weight: BLACK,
-      color: accent,
-      width: SLIDE_WIDTH - COVER_TITLE.x - 40,
-    }),
+    richTextAt(
+      context,
+      'titulo',
+      slotRichLines(context, 'titulo', DEFAULT_TITLE),
+      {
+        x: COVER_TITLE.x,
+        capTop: COVER_TITLE.capTop,
+        size: COVER_TITLE.size,
+        weight: BLACK,
+        color: accent,
+        width: SLIDE_WIDTH - COVER_TITLE.x - 40,
+      },
+      DEEP_MARK_COLORS,
+    ),
     rect({
       name: 'regua',
       size: { w: COVER_RULE.w, h: COVER_RULE.h },
       fill: solid(accent),
       transform: { x: COVER_RULE.x, y: COVER_RULE.y },
     }),
-    examLines(context, ink('on-deep'), lift, EXAM, NUMBER_DEFAULTS),
+    examLines(context, ink('on-deep'), lift, EXAM, NUMBER_DEFAULTS, DEEP_MARK_COLORS),
   ];
 }
 
@@ -386,15 +410,21 @@ function signOffTitle(context: TemplateContext, color: string): TextDraft {
   const [written] = slideRichLines(context);
   const [title] = slotRichLines(context, 'fecho', DEFAULT_SIGN_OFF_TITLE);
   const words = written === undefined ? title : trimmed(written);
-  return richTextAt(context, 'fecho-titulo', words === undefined ? [] : [words], {
-    x: 0,
-    capTop: SIGN_OFF_TITLE.capTop,
-    size: SIGN_OFF_TITLE.size,
-    weight: BOLD,
-    color,
-    width: SLIDE_WIDTH,
-    align: 'center',
-  });
+  return richTextAt(
+    context,
+    'fecho-titulo',
+    words === undefined ? [] : [words],
+    {
+      x: 0,
+      capTop: SIGN_OFF_TITLE.capTop,
+      size: SIGN_OFF_TITLE.size,
+      weight: BOLD,
+      color,
+      width: SLIDE_WIDTH,
+      align: 'center',
+    },
+    DEEP_MARK_COLORS,
+  );
 }
 
 /** One row of the sign-off: an outlined icon, then its words, as the reference places them. */

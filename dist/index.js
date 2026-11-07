@@ -22644,6 +22644,32 @@ var HIGHLIGHT_DEFAULTS = {
     Object.entries(MARK_COLORS).map(([name, color2]) => [`mark-cor-${name}`, color2])
   )
 };
+var DEEP_MARK_COLORS = {
+  azul: "#4085bb",
+  vermelho: "#c66262",
+  verde: "#3a922f",
+  ocre: "#a37835"
+};
+function deepMarkDefaults(colors) {
+  return Object.fromEntries(
+    Object.entries(colors).map(([name, color2]) => [`deep-mark-cor-${name}`, color2])
+  );
+}
+var DEEP_MARK_DEFAULTS = deepMarkDefaults(DEEP_MARK_COLORS);
+function marksOnDeep(context, colors) {
+  return {
+    marks: {
+      cor: {
+        values: Object.fromEntries(
+          Object.entries(colors).map(([name, color2]) => [
+            name,
+            { color: colorValue(context, `deep-mark-cor-${name}`, color2) }
+          ])
+        )
+      }
+    }
+  };
+}
 var ASCENT = 0.75;
 var DESCENT = 0.25;
 var CAP_HEIGHT = 0.709;
@@ -22702,14 +22728,20 @@ var build = (context) => {
 };
 function cover(context, ink, last, lift) {
   return [
-    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
-      x: 82,
-      capTop: 273,
-      size: 86.17,
-      weight: BLACK,
-      color: ink("accent"),
-      width: SLIDE_WIDTH - 85 - 40
-    }),
+    richTextAt(
+      context,
+      "titulo",
+      slotRichLines(context, "titulo", DEFAULT_TITLE),
+      {
+        x: 82,
+        capTop: 273,
+        size: 86.17,
+        weight: BLACK,
+        color: ink("accent"),
+        width: SLIDE_WIDTH - 85 - 40
+      },
+      DEEP_MARK_COLORS
+    ),
     rect({
       name: "regua",
       size: { w: 919, h: 10 },
@@ -22754,22 +22786,28 @@ var EXAM = {
   estimatedAdvance: 0.6,
   weight: BOLD3
 };
-function examLines(context, color2, lift, exam = EXAM, numbers = NUMBER_DEFAULTS) {
+function examLines(context, color2, lift, exam = EXAM, numbers = NUMBER_DEFAULTS, deep = DEEP_MARK_COLORS) {
   const rich = slideRichLines(context).map(trimmed);
   const written = rich.map((line) => plain(line));
   const floor = numberValue(context, "exam-floor", numbers["exam-floor"]);
   const ceiling = Math.max(floor, numberValue(context, "exam-ceiling", numbers["exam-ceiling"]));
   const bottom = exam.bottom - lift;
-  const draft = (size) => richTextAt(context, "prova", rich, {
-    x: exam.x,
-    capTop: exam.capTop,
-    size,
-    weight: exam.weight,
-    color: color2,
-    lineHeight: exam.lineHeight,
-    width: exam.width,
-    ...exam.tracking === void 0 ? {} : { letterSpacing: exam.tracking * size }
-  });
+  const draft = (size) => richTextAt(
+    context,
+    "prova",
+    rich,
+    {
+      x: exam.x,
+      capTop: exam.capTop,
+      size,
+      weight: exam.weight,
+      color: color2,
+      lineHeight: exam.lineHeight,
+      width: exam.width,
+      ...exam.tracking === void 0 ? {} : { letterSpacing: exam.tracking * size }
+    },
+    deep
+  );
   const layout = (size) => {
     const node2 = draft(size);
     const measured = node2.kind === "text" ? context.measure(node2) : void 0;
@@ -23501,9 +23539,10 @@ function textAt(name, words, placed) {
     placed
   );
 }
-function richTextAt(context, name, written, placed, spec = HIGHLIGHTS) {
+function richTextAt(context, name, written, placed, deep, spec = HIGHLIGHTS) {
   const style2 = { font: FACE2, size: placed.size, weight: placed.weight, color: placed.color };
-  const highlights2 = highlightsFromValues(context, spec, void 0, FACE_WEIGHTS);
+  const configured = highlightsFromValues(context, spec, void 0, FACE_WEIGHTS);
+  const highlights2 = deep === void 0 ? configured : configured.with(marksOnDeep(context, deep));
   const weight = highlights2.spec.bold?.weight ?? BOLD3;
   const kept = placed.weight >= weight ? highlights2.with({ bold: { weight: placed.weight } }) : highlights2;
   return richAt(name, written, style2, placed, kept.options);
@@ -23584,6 +23623,13 @@ var COLOR_DEFAULTS2 = {
   /** The "+" on paper. */
   "ornament-ink": "#cccccc"
 };
+var DEEP_MARK_COLORS2 = {
+  azul: "#99bfdc",
+  vermelho: "#e1adad",
+  verde: "#73cf67",
+  ocre: "#d6b580"
+};
+var DEEP_MARK_DEFAULTS2 = deepMarkDefaults(DEEP_MARK_COLORS2);
 var NUMBER_DEFAULTS2 = {
   "exam-floor": 56,
   "exam-ceiling": 76,
@@ -23719,21 +23765,27 @@ function cover2(context, ink, accent, lift) {
   return [
     // The reference sets it in CircularStd-Black, a family Tyto does not ship: CircularXX
     // Black, the maintainer's call (2026-11-04).
-    richTextAt(context, "titulo", slotRichLines(context, "titulo", DEFAULT_TITLE), {
-      x: COVER_TITLE.x,
-      capTop: COVER_TITLE.capTop,
-      size: COVER_TITLE.size,
-      weight: BLACK,
-      color: accent,
-      width: SLIDE_WIDTH - COVER_TITLE.x - 40
-    }),
+    richTextAt(
+      context,
+      "titulo",
+      slotRichLines(context, "titulo", DEFAULT_TITLE),
+      {
+        x: COVER_TITLE.x,
+        capTop: COVER_TITLE.capTop,
+        size: COVER_TITLE.size,
+        weight: BLACK,
+        color: accent,
+        width: SLIDE_WIDTH - COVER_TITLE.x - 40
+      },
+      DEEP_MARK_COLORS2
+    ),
     rect({
       name: "regua",
       size: { w: COVER_RULE.w, h: COVER_RULE.h },
       fill: solid(accent),
       transform: { x: COVER_RULE.x, y: COVER_RULE.y }
     }),
-    examLines(context, ink("on-deep"), lift, EXAM2, NUMBER_DEFAULTS2)
+    examLines(context, ink("on-deep"), lift, EXAM2, NUMBER_DEFAULTS2, DEEP_MARK_COLORS2)
   ];
 }
 var BUTTON = {
@@ -23813,15 +23865,21 @@ function signOffTitle(context, color2) {
   const [written] = slideRichLines(context);
   const [title] = slotRichLines(context, "fecho", DEFAULT_SIGN_OFF_TITLE2);
   const words = written === void 0 ? title : trimmed(written);
-  return richTextAt(context, "fecho-titulo", words === void 0 ? [] : [words], {
-    x: 0,
-    capTop: SIGN_OFF_TITLE.capTop,
-    size: SIGN_OFF_TITLE.size,
-    weight: BOLD3,
-    color: color2,
-    width: SLIDE_WIDTH,
-    align: "center"
-  });
+  return richTextAt(
+    context,
+    "fecho-titulo",
+    words === void 0 ? [] : [words],
+    {
+      x: 0,
+      capTop: SIGN_OFF_TITLE.capTop,
+      size: SIGN_OFF_TITLE.size,
+      weight: BOLD3,
+      color: color2,
+      width: SLIDE_WIDTH,
+      align: "center"
+    },
+    DEEP_MARK_COLORS2
+  );
 }
 var ICON_ROWS = [
   {

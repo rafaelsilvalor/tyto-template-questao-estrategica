@@ -1,5 +1,5 @@
 name: questao-engenharia
-version: 0.2.1
+version: 0.2.2
 brand: engenharia
 description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -86,6 +86,13 @@ values:
   mark-cor-vermelho: { type: color, default: '#873131' }
   mark-cor-verde: { type: color, default: '#39902e' }
   mark-cor-ocre: { type: color, default: '#8a662d' }
+  # The same marks on the cover and the sign-off, on `deep`, `#204e72` (TYTO-623): each swatch's hue at the
+  # darkest lightness that reads at a WCAG contrast of 4.5:1 there. `mark-cor-*` stays the
+  # colour on paper.
+  deep-mark-cor-azul: { type: color, default: '#99bfdc' }
+  deep-mark-cor-vermelho: { type: color, default: '#e1adad' }
+  deep-mark-cor-verde: { type: color, default: '#73cf67' }
+  deep-mark-cor-ocre: { type: color, default: '#d6b580' }
   # The cover's exam lines, the statement and the explanation are each set at the largest size
   # between their floor and ceiling that fits; the ceilings are the reference's sizes.
   exam-floor: { type: length, default: 56, min: 32, max: 112 }

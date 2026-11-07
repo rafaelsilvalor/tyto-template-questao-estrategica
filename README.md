@@ -45,6 +45,25 @@ percent (`10 %`), and, since template-kit 0.11 (Tyto TYTO-620), a number and its
 `2 m/s²`). A configured `highlight-weight` snaps to the nearest CircularXX weight the
 manifests declare (Tyto TYTO-619): 600 draws at 700.
 
+**On the deep colour** (TYTO-623), a colour mark takes its `deep-mark-cor-<name>` value
+instead: the four swatches were chosen for white paper, and on a dark slide two of them all but
+vanished. That is the cover in both templates and questao-engenharia's sign-off too; the house's
+sign-off is on paper and keeps `mark-cor-*`. Each default keeps its swatch's hue and is the
+darkest lightness that reads at a WCAG contrast of 4.5:1 or more on the template's `deep`
+(`tests/contrast.test.ts` pins it):
+
+| Mark       | On paper  | questao-estrategica, on `#00153d` | questao-engenharia, on `#204e72` |
+| ---------- | --------- | --------------------------------- | -------------------------------- |
+| `azul`     | `#2f628a` | `#4085bb` (2.75 → 4.50:1)         | `#99bfdc` (1.35 → 4.53:1)        |
+| `vermelho` | `#873131` | `#c66262` (2.14 → 4.53:1)         | `#e1adad` (1.05 → 4.50:1)        |
+| `verde`    | `#39902e` | `#3a922f` (4.43 → 4.54:1)         | `#73cf67` (2.17 → 4.53:1)        |
+| `ocre`     | `#8a662d` | `#a37835` (3.42 → 4.51:1)         | `#d6b580` (1.68 → 4.50:1)        |
+
+A configuration that changes `deep` changes these beside it; one that changes only
+`mark-cor-*` changes the paper's colours and leaves the deep ones as they are. On a cover with a
+picture (`fundo`, `cover-background`) the marks keep the deep colours, which were measured
+against the flat `deep` and not against any picture.
+
 Math is written as plain Unicode: `Δv = a·Δt`, `α ≤ 30°`, `x²`, `10⁻³`. A glyph CircularXX
 lacks is drawn in Tyto's bundled symbol face (Tyto ADR 0168, core 0.37 or later): Noto Sans
 Math, or Source Sans 3 for what Noto Sans Math leaves to text faces. On the maintainer's
@@ -204,7 +223,9 @@ which Tyto has no face for: it is Black (900), the maintainer's call.
 
 ## What a configuration may change
 
-`templates/questao-estrategica/manifest.yaml` declares nineteen `values` (Tyto ADR 0153): nine
+`templates/questao-estrategica/manifest.yaml` declares twenty-eight `values` (Tyto ADR 0153):
+the highlights' nine (`highlight-weight`, `mark-cor-*` and `deep-mark-cor-*`, above), the
+cover's picture, the three spacing numbers below, nine
 colours — the cover's `deep`, `accent` and `on-deep`, the `paper`, the `title-ink`, `body-ink`
 and `closing-ink`, and the like bar's `bar-fill` and `bar-ink` — and six lengths, three pairs of
 floor and ceiling between which the words are sized to their room: `exam-floor`/`exam-ceiling`

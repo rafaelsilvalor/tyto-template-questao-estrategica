@@ -4,7 +4,7 @@ import { defineTemplate, formatCatalogue, parseFormats, parseManifest } from '@t
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { COLOR_DEFAULTS, NUMBER_DEFAULTS, build } from '../src/engenharia.js';
+import { COLOR_DEFAULTS, DEEP_MARK_DEFAULTS, NUMBER_DEFAULTS, build } from '../src/engenharia.js';
 import { HIGHLIGHT_DEFAULTS } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
@@ -61,6 +61,7 @@ describe('questao-engenharia declared values', () => {
     ...COLOR_DEFAULTS,
     ...NUMBER_DEFAULTS,
     ...HIGHLIGHT_DEFAULTS,
+    ...DEEP_MARK_DEFAULTS,
   };
 
   it('declares each default equal to the one the code falls back to, and no other', () => {

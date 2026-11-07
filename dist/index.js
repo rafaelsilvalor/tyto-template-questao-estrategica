@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.39.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-WZSLWFYX.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.40.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-VUOASSJ3.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20201,6 +20201,14 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "The template that won the name renders with its own defaults."
   },
+  W_PLUGIN_FILE_TEMPLATE_UNNAMED: {
+    severity: "warning",
+    summary: "A pack a plugin file fetched holds templates no entry names, so they are not offered.",
+    template: "The pack of plugin '{plugin}' that '{file}' fetches for '{template}' also holds {unnamed}; a fetched pack offers only the templates the plugin files name. To offer one, add an entry for it with the same git and ref as '{template}'.",
+    spec: "docs/adr/0151-plugin-files-install-and-configure-templates.md",
+    fatal: false,
+    fatality: "The templates the files name load; the others are left out, as before."
+  },
   W_PLUGIN_FILE_REPLACES_INSTALLED: {
     severity: "warning",
     summary: "A plugin from the plugin files has the name of one installed with tyto plugin install.",
@@ -20216,6 +20224,16 @@ var diagnosticCodes = {
     spec: "docs/adr/0151-plugin-files-install-and-configure-templates.md",
     fatal: false,
     fatality: "The copy fetched earlier loads when there is one; a brief that needs one that is missing says so on its own."
+  },
+  // TYTO-470: a deep TYTO_HOME on Windows used to end a render or a sync in a stack trace
+  // from `mkdtemp`. The cache layout stays; the run says which folder is too deep instead.
+  E_TYTO_HOME_PATH_TOO_LONG: {
+    severity: "error",
+    summary: "A path Tyto writes under TYTO_HOME is longer than the system accepts.",
+    template: "TYTO_HOME '{home}' is too deep a folder: a path Tyto writes under it reaches {length} characters, {reason}. Set TYTO_HOME to a shorter folder.",
+    spec: "docs/adr/0151-plugin-files-install-and-configure-templates.md",
+    fatal: false,
+    fatality: "Nothing is fetched under that folder; copies already in its cache still load, and a brief that needs a missing one says so on its own."
   },
   E_PLUGIN_FILE_SOURCE_REFUSED: {
     severity: "error",
@@ -21763,7 +21781,7 @@ function imageValue(context, name) {
   return typeof value === "object" && "hash" in value ? value : void 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.39.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.40.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -21865,7 +21883,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -21902,7 +21920,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.11.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.11.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -22466,7 +22484,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22509,7 +22527,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.3/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");

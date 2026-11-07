@@ -1,5 +1,5 @@
 name: questao-estrategica
-version: 0.6.2
+version: 0.7.0
 brand: marinho
 description: One exam question as a 1080×1350 carousel — a cover naming the exam, the statement with its options, the answer with its explanation, and a sign-off.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -22,7 +22,10 @@ fonts:
 formats: [grid]
 slots:
   # The words over the cover's rule. Optional: without it the template draws its default.
-  titulo: { type: rich-text, max: 40 }
+  # `frontmatterMarks` (Tyto TYTO-622): the template draws `**…**` and `{cor:…}…{/}` written
+  # here, so the host does not warn about them, and `max` counts the words drawn (TYTO-634).
+  # `fecho` the same.
+  titulo: { type: rich-text, max: 40, frontmatterMarks: true }
   # The cover's picture, full bleed under the words. In the frontmatter: `fundo: ./fundo.png`.
   # Without it the cover is the deep colour, flat.
   fundo: { type: image }
@@ -35,7 +38,7 @@ slots:
   # number at the foot rises by it. In the frontmatter: `selo: ./selo.png`.
   selo: { type: image }
   # The sign-off slide's words: its first line the title, the rest the paragraph. Optional.
-  fecho: { type: rich-text, max: 160 }
+  fecho: { type: rich-text, max: 160, frontmatterMarks: true }
   # One slide each, in order. The cover is `::lamina {capa}` (its lines name the exam), the
   # answer `::lamina {resposta}` (its first line the answer, the rest the explanation) and the
   # sign-off `::lamina {fecho}`, empty. An unmarked `::lamina` is the statement: its lines up to

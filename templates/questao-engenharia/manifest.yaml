@@ -1,5 +1,5 @@
 name: questao-engenharia
-version: 0.2.2
+version: 0.3.0
 brand: engenharia
 description: questao-estrategica's exam question in the engineering frame — a cover with a "Confira" button, the statement and the answer with no heading or number, and a sign-off of icons — from the same brief.
 # Every face the slides set is declared, so the plugin's process can measure them (Tyto ADR 0048).
@@ -24,7 +24,10 @@ formats: [grid]
 # changing its `template:` line.
 slots:
   # The words over the cover's rule. Optional: without it the template draws its default.
-  titulo: { type: rich-text, max: 40 }
+  # `frontmatterMarks` (Tyto TYTO-622): the template draws `**…**` and `{cor:…}…{/}` written
+  # here, so the host does not warn about them, and `max` counts the words drawn (TYTO-634).
+  # `fecho` the same.
+  titulo: { type: rich-text, max: 40, frontmatterMarks: true }
   # The cover's picture, full bleed under the words. Without it the cover is the deep colour.
   fundo: { type: image }
   # The pictures a statement or an answer shows, each where it is written among the slide's
@@ -33,7 +36,7 @@ slots:
   # The house's seal art, 1080 × 140, glued to the foot of the last slide (TYTO-201).
   selo: { type: image }
   # The sign-off's title, its first line. Optional; the rows of icons under it are fixed.
-  fecho: { type: rich-text, max: 160 }
+  fecho: { type: rich-text, max: 160, frontmatterMarks: true }
   # One slide each, in order: `::lamina {capa}` (its lines name the exam), the statement's
   # unmarked `::lamina` (its lines up to the first `a)` are the statement, every `x) ...` line
   # one option), `::lamina {resposta}` (its first line the answer, the rest the explanation)

@@ -45,6 +45,14 @@ percent (`10 %`), and, since template-kit 0.11 (Tyto TYTO-620), a number and its
 `2 m/s²`). A configured `highlight-weight` snaps to the nearest CircularXX weight the
 manifests declare (Tyto TYTO-619): 600 draws at 700.
 
+**In the frontmatter** (TYTO-633), `titulo:` and `fecho:` take the same marks, and both
+manifests say so with `frontmatterMarks: true` (Tyto TYTO-622): Tyto raises no
+`W_MARKUP_IN_FRONTMATTER` for them, and `titulo`'s `max: 40` counts the words drawn, not the
+marks written (Tyto TYTO-634), so `titulo: Questão {cor:azul}de{/} {cor:vermelho}fixação{/}`
+is 18 characters, not 48. That needs a host with plugin API 0.14.3 or later (desktop 0.15.0):
+`engine` is `>=0.14.3`, so an older Tyto refuses the plugin by its engine rather than failing
+on the manifest's new key.
+
 **On the deep colour** (TYTO-623), a colour mark takes its `deep-mark-cor-<name>` value
 instead: the four swatches were chosen for white paper, and on a dark slide two of them all but
 vanished. That is the cover in both templates and questao-engenharia's sign-off too; the house's
@@ -136,7 +144,7 @@ selo: ./selo.png
 - **The cover**, `{capa}`: its lines name the exam, set at the largest size between
   `exam-floor` and `exam-ceiling` that keeps them in their room — a short title grows, a long
   one shrinks, and one that does not fit at the floor renders with `W_TEMPLATE_OVERFLOW`. The
-  words over the rule are `Questão de fixação` unless the brief writes `::titulo`; `fundo:` is
+  words over the rule are `Questão de fixação` unless the brief writes `::titulo` or `titulo:`; `fundo:` is
   the picture under the cover, full bleed, and without it the cover is flat `deep`.
 - **The statement**, an unmarked `::lamina`: its lines up to the first `A)` are the statement,
   and every `X) …` line one option, its letter on the statement's left edge: one to three
@@ -294,6 +302,8 @@ The tests, all without Tyto:
   has no CircularXX, so the faces stand in with the glyphs each lacks, read from their `cmap`.
 - `tests/values.test.ts`: the declared values — each default pinned to the one the code falls
   back to, and a colour set in a test found in the HTML.
+- `tests/frontmatter-marks.test.ts`: marks in `titulo:` and `fecho:`, in both templates, drawn
+  in their colours with no `W_MARKUP_IN_FRONTMATTER` and no `E_BAD_SLOT_VALUE`.
 - `tests/plugin.test.ts`: the built `dist/index.js`, loaded through
   `@tyto/plugin-api/testing` (Tyto ADR 0150), drawing a slide across the isolation protocol.
 

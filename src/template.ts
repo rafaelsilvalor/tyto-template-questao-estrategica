@@ -252,11 +252,35 @@ const ESTIMATED_ADVANCE = 0.5;
 
 export type Role = 'capa' | 'enunciado' | 'resposta' | 'fecho';
 
-/** Which slide this `::lamina` is: the brief marks every one but the statement. */
+type Adjustments = TemplateContext['adjustments'];
+
+/** The role a slide's own marks give it, or `undefined` for an unmarked one. */
+function markedRole(adjustments: Adjustments): Role | undefined {
+  if (adjustments['capa'] === true) return 'capa';
+  if (adjustments['resposta'] === true) return 'resposta';
+  if (adjustments['fecho'] === true) return 'fecho';
+  return undefined;
+}
+
+/**
+ * Which slide this `::lamina` is: the brief marks every one but the statement.
+ *
+ * A bare `{continua}` goes on from the slide before, so after an answer it is still the answer
+ * (TYTO-679): it walks back through the slides before it (`context.artworks`, Tyto ADR 0203)
+ * past other bare continuations to the first one that says what it is. Only an answer carries
+ * on this way; a continued cover or sign-off does not exist, so after one it is a statement,
+ * as it is after an unmarked statement.
+ */
 export function roleOf(context: TemplateContext): Role {
-  if (context.adjustments['capa'] === true) return 'capa';
-  if (context.adjustments['resposta'] === true) return 'resposta';
-  if (context.adjustments['fecho'] === true) return 'fecho';
+  const own = markedRole(context.adjustments);
+  if (own !== undefined) return own;
+  if (context.adjustments['continua'] !== true) return 'enunciado';
+  const before = context.artworks?.slice(0, context.artwork.index).reverse() ?? [];
+  for (const { adjustments } of before) {
+    const role = markedRole(adjustments);
+    if (role !== undefined) return role === 'resposta' ? 'resposta' : 'enunciado';
+    if (adjustments['continua'] !== true) return 'enunciado';
+  }
   return 'enunciado';
 }
 

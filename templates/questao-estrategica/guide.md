@@ -54,8 +54,8 @@ replace **its** spaces with no-break spaces (U+00A0); only for a short formula, 
 fit the line.
 
 **Continuing on a new slide:** a statement or an explanation too long for one slide continues
-on the next one marked `{continua}` (`::lamina {continua}` for the statement,
-`::lamina {resposta, continua}` for the explanation). A continuation repeats neither the
+on the next one marked `::lamina {continua}`. After the answer it continues the explanation;
+after the statement, the statement (`{resposta, continua}` also works). A continuation repeats neither the
 statement's label nor the answer's heading.
 
 **Pictures in the middle:** each picture is a line `::imagem ./file.png`, not indented, **after**

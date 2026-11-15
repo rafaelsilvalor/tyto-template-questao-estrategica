@@ -37,7 +37,8 @@ Each slide says what it is by its mark in braces:
 4. **`::lamina {fecho}`**, empty, last. Its title, if it changes, goes in `::fecho`.
 
 **Continuing:** a statement or explanation too long for one slide continues on a slide marked
-`{continua}` (`::lamina {continua}`, or `::lamina {resposta, continua}` for the explanation).
+`::lamina {continua}`: after the answer it continues the explanation, after the statement the
+statement (`{resposta, continua}` also works).
 
 **Highlights:** `**word**` in bold; `{cor:azul}word{/}` (also `vermelho`, `verde`, `ocre`) in
 bold and in that colour, in the statement, the options and the explanation. On the cover only

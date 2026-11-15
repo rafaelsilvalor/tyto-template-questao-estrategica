@@ -400,6 +400,92 @@ imagem-1: ./800x600.png
     expect(wordsOf(drawn[1]!, 'explicacao')).toBe('Mais explicação.');
   });
 
+  describe('a bare {continua} keeps the role of the slide it continues (TYTO-679)', () => {
+    /** Which of `enunciado` and `explicacao` each slide draws (a paragraph after the first is `-2`…). */
+    async function rolesOf(brief: string): Promise<string[][]> {
+      const drawn = await slides(brief);
+      return drawn.map((slide) =>
+        ['enunciado', 'explicacao'].filter((role) =>
+          nodes(slide).some((node) => node.name === role || node.name?.startsWith(`${role}-`)),
+        ),
+      );
+    }
+
+    it('continues an answer with the short form', async () => {
+      const roles = await rolesOf(`::lamina
+  Qual?
+  A) Uma.
+
+::lamina {resposta}
+  Gabarito: A
+  Porque sim.
+
+::lamina {continua}
+  Mais explicação.`);
+
+      expect(roles).toEqual([['enunciado'], ['explicacao'], ['explicacao']]);
+    });
+
+    it('draws the long form as before', async () => {
+      const roles = await rolesOf(`::lamina {resposta}
+  Gabarito: A
+  Porque sim.
+
+::lamina {resposta, continua}
+  Mais explicação.`);
+
+      expect(roles).toEqual([['explicacao'], ['explicacao']]);
+    });
+
+    it('walks back through a chain of continuations', async () => {
+      const roles = await rolesOf(`::lamina {resposta}
+  Gabarito: A
+  Porque sim.
+
+::lamina {continua}
+  Mais explicação.
+
+::lamina {continua}
+  E mais.`);
+
+      expect(roles).toEqual([['explicacao'], ['explicacao'], ['explicacao']]);
+    });
+
+    it('still continues a statement as a statement', async () => {
+      const roles = await rolesOf(`::lamina
+  Qual?
+
+::lamina {continua}
+  E o enunciado segue.`);
+
+      expect(roles).toEqual([['enunciado'], ['enunciado']]);
+    });
+
+    it('stops at the nearest unmarked slide, which is a statement', async () => {
+      const roles = await rolesOf(`::lamina {resposta}
+  Gabarito: A
+  Porque sim.
+
+::lamina
+  Outra pergunta?
+
+::lamina {continua}
+  E o enunciado segue.`);
+
+      expect(roles[2]).toEqual(['enunciado']);
+    });
+
+    it('does not continue a cover: a bare {continua} after one is a statement', async () => {
+      const roles = await rolesOf(`::lamina {capa}
+  Capa
+
+::lamina {continua}
+  E o enunciado segue.`);
+
+      expect(roles[1]).toEqual(['enunciado']);
+    });
+  });
+
   it('glues the seal to the last slide’s foot and lifts its number by the band', async () => {
     const brief = `---
 template: questao-estrategica

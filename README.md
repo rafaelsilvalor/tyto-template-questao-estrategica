@@ -153,8 +153,10 @@ selo: ./selo.png
   on a line of its own, so a `\` or a new line inside an option breaks it where you wrote it
   (TYTO-520). The statement is sized to its room, as the cover is; the answer's explanation too.
 - **The answer**, `{resposta}`: its first line in large (`Letra B`), the rest the explanation.
-- **A slide that goes on** from the one before, `{continua}` beside the mark (an unmarked
-  statement or `{resposta, continua}`): no label, its words start where the label would. A
+- **A slide that goes on** from the one before, `{continua}`: no label, its words start where
+  the label would. A bare `{continua}` takes the role of the slide it continues, so after an
+  answer it is still the answer (TYTO-679, through Tyto ADR 0203; on a host older than plugin
+  API 0.22 it is a statement, and `{resposta, continua}` still works everywhere). A
   question may have as many middle slides as its content needs; every slide is numbered
   `01 I 06` from its place.
 - **Pictures** on a statement or an answer: `::imagem ./figura.png` after the slide's

@@ -15,17 +15,17 @@ importers:
         specifier: ^26.6.2
         version: 26.6.6
       '@tyto/core':
-        specifier: npm:@rafaelsilvalor/tyto-core@^0.46.0
-        version: '@rafaelsilvalor/tyto-core@0.46.0'
+        specifier: npm:@rafaelsilvalor/tyto-core@^0.55.0
+        version: '@rafaelsilvalor/tyto-core@0.55.0'
       '@tyto/house-style':
-        specifier: npm:@rafaelsilvalor/tyto-house-style@^0.5.11
-        version: '@rafaelsilvalor/tyto-house-style@0.5.11'
+        specifier: npm:@rafaelsilvalor/tyto-house-style@^0.6.8
+        version: '@rafaelsilvalor/tyto-house-style@0.6.8'
       '@tyto/plugin-api':
-        specifier: npm:@rafaelsilvalor/tyto-plugin-api@^0.22.0
-        version: '@rafaelsilvalor/tyto-plugin-api@0.22.0'
+        specifier: npm:@rafaelsilvalor/tyto-plugin-api@^0.28.1
+        version: '@rafaelsilvalor/tyto-plugin-api@0.28.1'
       '@tyto/template-kit':
-        specifier: npm:@rafaelsilvalor/tyto-template-kit@^0.11.9
-        version: '@rafaelsilvalor/tyto-template-kit@0.11.9'
+        specifier: npm:@rafaelsilvalor/tyto-template-kit@^0.15.0
+        version: '@rafaelsilvalor/tyto-template-kit@0.15.0'
       eslint:
         specifier: ^10.11.0
         version: 10.13.0
@@ -315,29 +315,29 @@ packages:
   '@oxc-project/types@0.155.0':
     resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
 
-  '@rafaelsilvalor/tyto-brief-lang@0.9.0':
-    resolution: {integrity: sha512-tGeZwVsqw0Wraga7bJdeDKDK0M9bYV7YjsJu+3f9PTg5alRmYrZL+b2WeuoLcLOM4nYaxxVS/RQ57D6aj2KqcA==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-brief-lang/0.9.0/6d076e63758df06749f6e73686d2872cf10d8b46}
+  '@rafaelsilvalor/tyto-brief-lang@0.12.6':
+    resolution: {integrity: sha512-qJZGbWRvPd63m3qX8rF6fv4uo2SZIAQQev+dhKzFLDeYUixtWPDGuLhLWKIMp5DefmEJa6K+dCsSmqaWUrZCEw==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-brief-lang/0.12.6/4ff075fd21e2bb3226fa851b141d4229ecbc35eb}
 
-  '@rafaelsilvalor/tyto-core@0.46.0':
-    resolution: {integrity: sha512-ZCTj3NYEhjrBlM0wifqDRu6exKb9mOzAefHeYht+IbCeppO92iEOw8cbHqmxYu/tvgI20smeLKjHUsEcPyV6VQ==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-core/0.46.0/1b0433a57b0ca1fe0c4ff4e6285bd9fa5a2e2a10}
+  '@rafaelsilvalor/tyto-core@0.55.0':
+    resolution: {integrity: sha512-BrObiwE7gD4PnWOlMGrWPREPER8favSazTjTutwpwnUKJ2oe3WlYD+Z7URoxvxj8zD4pPmgBlxPBGjIc6XA/og==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-core/0.55.0/6b538d043e08ac5f018c9808fd874796dd60c40b}
 
-  '@rafaelsilvalor/tyto-export-html@0.7.22':
-    resolution: {integrity: sha512-7dcmggrKRX6FGwvMUAECwKbZodXe8A68nE2ku4rt3mkBU+H9Ma4ElL30SDSggwIsQVbyd6gUpcRnlLqyozk4Rw==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-export-html/0.7.22/2aab954e6e3f59a51a4505e66b59d4355d0a59b1}
+  '@rafaelsilvalor/tyto-export-html@0.8.12':
+    resolution: {integrity: sha512-I/b0PxgNueRKhpxWXPS4EW27Go2MOK9PS+WXZLmQRN+UZpguewVsYPrpM8AS+CHq0F/XSTnKTIgMX+R28AV9vA==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-export-html/0.8.12/cccddcabe5ab61641cf4b51b86f0f44bc42298e9}
 
-  '@rafaelsilvalor/tyto-house-style@0.5.11':
-    resolution: {integrity: sha512-Hs4eqWWb0WaWdZjRnYoRAsDPE4/9bWxHvX+Ek4rCNMuADWEh9lG1RtExQbDzA3dbDos6P1FT7lnVJnNJOSd9vA==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-house-style/0.5.11/473e46ae31f962d57856da100cdf7f56286cf254}
+  '@rafaelsilvalor/tyto-house-style@0.6.8':
+    resolution: {integrity: sha512-G2fSpe3dZhLkRW/tavfcELgUPiTkYHx9+QIREeL/xAbf1CibLcU+JFC+REFZNyeq9AfCwUP/rRmJTQ4xx42WiA==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-house-style/0.6.8/ca35a4926e7f123c768facf9821af1b29fa47bd7}
 
-  '@rafaelsilvalor/tyto-plugin-api@0.22.0':
-    resolution: {integrity: sha512-2bp/q7Sn2iF1a6yqYmCieMMNRK64Fmvp/VqEBkI5fPLEHGo+5CWSc1Umefbgg7B6H7IQGB3d0PdyO10xBKIoSA==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-plugin-api/0.22.0/5f1b2e7d61120293b7b66fec4fc89de6b60e2f60}
+  '@rafaelsilvalor/tyto-plugin-api@0.28.1':
+    resolution: {integrity: sha512-ipPqw7eEsDcFTiOTtjsrHl+6GQsNGwJ2HBK8VsceBJ2+OkUPh7mNPG2FyeobOx6HLwfzdBG1KYF4WlDREIOnkw==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-plugin-api/0.28.1/cd0e5ddd0a818c34e6d8dbf1afd241302ac91cb6}
 
-  '@rafaelsilvalor/tyto-recipe@0.7.0':
-    resolution: {integrity: sha512-rKs3KtalxBqrUIfT4hy53ROJDDRLnrZa3hZxZS4hJ/rL3fojq2wImod6rXseimba7qU31b2bhCspefVZ8T2sqw==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-recipe/0.7.0/2dbaceedefc4561ffae0dbbc680c9cbe0b6b5632}
+  '@rafaelsilvalor/tyto-recipe@0.14.2':
+    resolution: {integrity: sha512-16/IEd3T3jrmbdnCiRsioems/R5p04la2tI0fk+fIE0KQYUv/vIfj4UjXjKuTuBj02rPGhGQtNGv2RDIV0qnFg==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-recipe/0.14.2/0b5d27ded93bb38021240f4fb90f3d5b9a4f425f}
 
-  '@rafaelsilvalor/tyto-template-kit@0.11.9':
-    resolution: {integrity: sha512-vImmGUFxb2Bf+L9PtT+a2vDlB4foORKz5DVY2XR9assvkE61R7scmK3/C5xsEs8YL1Xbw0gdjUz9+v7sImiasQ==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-template-kit/0.11.9/ddf43c3458fc994fc7af7c06d60eec8c69d9a9cf}
+  '@rafaelsilvalor/tyto-template-kit@0.15.0':
+    resolution: {integrity: sha512-fk1xN2wsWAzf6YSkbLmsiFa0JrEuwgYo5arpvfOikfptJ9WKF83/VTc5sHWt48cmteNf7Wlgf+9/Pc4fcKPF5w==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-template-kit/0.15.0/0a04e69003a0d2f57e3eb07089a86a733ac402a5}
 
-  '@rafaelsilvalor/tyto-template-lang@0.8.20':
-    resolution: {integrity: sha512-Z6W+hgg+ZITmVK0dk15afoRq8tVf14pncVYQLXXuHGJnIYpGR2dFA/NHlGqHQLD/XZDWwMC/gelqZvq4GencMQ==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-template-lang/0.8.20/1a2ba9207edac52e73448d22125107165d826eca}
+  '@rafaelsilvalor/tyto-template-lang@0.8.31':
+    resolution: {integrity: sha512-ZIQS+BqVMbxgiA5i4Z4ZELCLaaAB3hahckvpg21syCRXMHNlw5vqSfJe8Dhg6zgrLZ/offxSup4BOMIw3WtHJQ==, tarball: https://npm.pkg.github.com/download/@rafaelsilvalor/tyto-template-lang/0.8.31/8a8325d47dce5c8bd814b9adc0fed6d0ff070a33}
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     resolution: {integrity: sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==}
@@ -1569,57 +1569,57 @@ snapshots:
 
   '@oxc-project/types@0.155.0': {}
 
-  '@rafaelsilvalor/tyto-brief-lang@0.9.0':
+  '@rafaelsilvalor/tyto-brief-lang@0.12.6':
     dependencies:
       '@lezer/common': 1.5.4
       '@lezer/highlight': 1.2.5
       '@lezer/lr': 1.4.11
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
       yaml: 2.9.1
 
-  '@rafaelsilvalor/tyto-core@0.46.0':
+  '@rafaelsilvalor/tyto-core@0.55.0':
     dependencies:
       fontkit: 2.0.4
       yaml: 2.9.1
       zod: 4.6.7
 
-  '@rafaelsilvalor/tyto-export-html@0.7.22':
+  '@rafaelsilvalor/tyto-export-html@0.8.12':
     dependencies:
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
-      '@tyto/plugin-api': '@rafaelsilvalor/tyto-plugin-api@0.22.0'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
+      '@tyto/plugin-api': '@rafaelsilvalor/tyto-plugin-api@0.28.1'
 
-  '@rafaelsilvalor/tyto-house-style@0.5.11':
+  '@rafaelsilvalor/tyto-house-style@0.6.8':
     dependencies:
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
-      '@tyto/template-kit': '@rafaelsilvalor/tyto-template-kit@0.11.9'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
+      '@tyto/template-kit': '@rafaelsilvalor/tyto-template-kit@0.15.0'
 
-  '@rafaelsilvalor/tyto-plugin-api@0.22.0':
+  '@rafaelsilvalor/tyto-plugin-api@0.28.1':
     dependencies:
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
-      '@tyto/recipe': '@rafaelsilvalor/tyto-recipe@0.7.0'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
+      '@tyto/recipe': '@rafaelsilvalor/tyto-recipe@0.14.2'
       yaml: 2.9.1
       zod: 4.6.7
 
-  '@rafaelsilvalor/tyto-recipe@0.7.0':
+  '@rafaelsilvalor/tyto-recipe@0.14.2':
     dependencies:
-      '@tyto/brief-lang': '@rafaelsilvalor/tyto-brief-lang@0.9.0'
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
+      '@tyto/brief-lang': '@rafaelsilvalor/tyto-brief-lang@0.12.6'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
       jsonc-parser: 3.3.1
       zod: 4.6.7
 
-  '@rafaelsilvalor/tyto-template-kit@0.11.9':
+  '@rafaelsilvalor/tyto-template-kit@0.15.0':
     dependencies:
-      '@tyto/brief-lang': '@rafaelsilvalor/tyto-brief-lang@0.9.0'
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
-      '@tyto/export-html': '@rafaelsilvalor/tyto-export-html@0.7.22'
-      '@tyto/template-lang': '@rafaelsilvalor/tyto-template-lang@0.8.20'
+      '@tyto/brief-lang': '@rafaelsilvalor/tyto-brief-lang@0.12.6'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
+      '@tyto/export-html': '@rafaelsilvalor/tyto-export-html@0.8.12'
+      '@tyto/template-lang': '@rafaelsilvalor/tyto-template-lang@0.8.31'
 
-  '@rafaelsilvalor/tyto-template-lang@0.8.20':
+  '@rafaelsilvalor/tyto-template-lang@0.8.31':
     dependencies:
       '@lezer/common': 1.5.4
       '@lezer/highlight': 1.2.5
       '@lezer/lr': 1.4.11
-      '@tyto/core': '@rafaelsilvalor/tyto-core@0.46.0'
+      '@tyto/core': '@rafaelsilvalor/tyto-core@0.55.0'
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     optional: true

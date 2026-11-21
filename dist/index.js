@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.46.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-R4FIIREI.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.55.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-IT6P3KDS.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -19840,6 +19840,22 @@ var diagnosticCodes = {
     spec: "docs/adr/0117-a-plugin-source-is-fetched-once-and-read-from-a-cache.md",
     fatal: false,
     fatality: "One image the brief named, exactly as a missing file is: the slot stays unset and the rest of the brief renders."
+  },
+  E_ASSET_DECODER_MISSING: {
+    severity: "error",
+    summary: "The brief names a file of a kind no picture is drawn from, and no installed plugin decodes it.",
+    template: "Asset '{path}' is a '{extension}' file, which Tyto cannot draw by itself; install a plugin that decodes '{extension}' files.",
+    spec: "docs/adr/0223-a-plugin-decodes-a-file-kind-into-an-image-through-a-one-call-token.md",
+    fatal: false,
+    fatality: "One image the brief named, exactly as a missing file is: the slot stays unset and the rest of the brief renders."
+  },
+  E_ASSET_DECODE_FAILED: {
+    severity: "error",
+    summary: "The plugin that decodes a file kind could not turn the file the brief named into a picture.",
+    template: "Asset '{path}' could not be decoded by plugin '{plugin}': {problem}.",
+    spec: "docs/adr/0223-a-plugin-decodes-a-file-kind-into-an-image-through-a-one-call-token.md",
+    fatal: false,
+    fatality: "One image the brief named, never drawn blank: the slot stays unset as for a missing file and the rest of the brief renders."
   },
   E_UNSUPPORTED_CSS: {
     severity: "error",
@@ -20511,6 +20527,22 @@ var diagnosticCodes = {
     fatal: true,
     fatality: "The IR is malformed, so the exporter has nothing it can draw."
   },
+  E_SCENE_GUIDE_NODE_NOT_FOUND: {
+    severity: "error",
+    summary: "A guide's layer names a node that is not one of its frame's top-level children.",
+    template: "Layer '{layer}' of the guide for '{frame}' names node '{id}', which is not one of the frame's top-level children.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "The IR is malformed, so the exporter has nothing it can draw."
+  },
+  E_SCENE_GUIDE_LAYERING: {
+    severity: "error",
+    summary: "A frame's node is not in exactly one of its guide's layers.",
+    template: "Node '{id}' of the guide for '{frame}' is in {count} layers; every top-level node is in exactly one.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "A node in no layer would vanish from the layered file and one in two would be painted twice, so the IR is malformed."
+  },
   E_SCENE_MASK_DESCENDANT: {
     severity: "error",
     summary: "A mask references a descendant of the node it masks.",
@@ -20603,6 +20635,30 @@ var diagnosticCodes = {
     spec: "docs/template-authoring.md",
     fatal: true,
     fatality: "A frame with no size cannot be drawn, and `compile` refuses before it builds anything \u2014 so the formats that are defined do not render either, which is what would have to change first."
+  },
+  E_EXTERNAL_ART_ASPECT: {
+    severity: "error",
+    summary: "A slot's full external art does not keep the proportion of a format it covers (ADR 0220).",
+    template: "Slot '{slot}' of template '{template}' declares full art of {width}\xD7{height} for format '{format}', which is {formatWidth}\xD7{formatHeight}: full art keeps the format's proportion, so its height there is {expected}.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "The declaration is the size somebody paints to, and art painted to the wrong proportion is cropped or stretched on every render; `compile` refuses before it builds anything, as it does for a format with no size."
+  },
+  E_GUIDE_NO_EXTERNAL_ART: {
+    severity: "error",
+    summary: "A guide was asked for a brief whose template declares no art painted outside Tyto (ADR 0221).",
+    template: "Template '{template}' declares no slot with external art, so there is no guide to write: a guide is for a slot whose manifest declares 'external'.",
+    spec: "docs/adr/0221-a-guides-layers-are-rasterised-into-the-scene-and-an-exporter-may-answer-bytes.md",
+    fatal: true,
+    fatality: "A guide with no art is the artwork cut into layers with nowhere to paint, which looks like a guide and guides nothing; the run writes no file."
+  },
+  E_GUIDE_NEWER_THAN_BRIEF: {
+    severity: "error",
+    summary: "A guide was not written over because it changed after the brief and may hold paint (ADR 0222).",
+    template: "The guide '{guide}' was changed after the brief, and may hold the art painted in it: move it away, or pass --force to write it again.",
+    spec: "docs/adr/0222-external-art-has-a-file-per-format-beside-the-cited-one.md",
+    fatal: true,
+    fatality: "Writing over a guide somebody painted in loses their work with no way back, so the run writes no guide at all and says which file stopped it."
   },
   E_MANIFEST_SYNTAX: {
     severity: "error",
@@ -20833,6 +20889,14 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
+  W_EXTERNAL_ART_MISSING: {
+    severity: "warning",
+    summary: "A slot whose art is painted outside Tyto has no file yet, and an outlined box stands in for it (ADR 0220).",
+    template: "Slot '{slot}' of template '{template}' has no art yet ({reason}); an outlined box is drawn where it goes.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: false,
+    fatality: "The art arrives later by design, and the box keeps its place, size and stacking in every format; a warning never replaces a value (ADR 0013)."
+  },
   // Warnings and not errors: a configuration is tolerant per value, as a plugin file is per
   // entry (ADR 0151 decision 2). The template draws with its default instead, and says so.
   W_TEMPLATE_VALUE_UNKNOWN: {
@@ -20906,6 +20970,34 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
+  // Three codes and not one, because the fix differs: a command Tyto does not draw, a brace
+  // out of place, and a formula or group with nothing in it (ADR 0206 decision 5, TYTO-734).
+  // Not fatal: the formula is drawn as the text the author wrote, `$` included, so the
+  // artwork still exists and shows exactly what was not understood.
+  E_FORMULA_COMMAND: {
+    severity: "error",
+    summary: "A formula holds a `\\` command or escape other than `\\frac`, `\\ `, `\\$`, `\\{` and `\\}`.",
+    template: "'{command}' is not something a formula can draw; it knows \\frac, ^ and _, and a \\ before a space, a $ or a brace.",
+    spec: "docs/brief-language.md",
+    fatal: false,
+    fatality: "The formula is drawn as its source text and the rest of the brief is unaffected."
+  },
+  E_FORMULA_GROUP: {
+    severity: "error",
+    summary: "A `{\u2026}` in a formula is missing, unclosed, or where no group belongs.",
+    template: "Formula group: {problem}.",
+    spec: "docs/brief-language.md",
+    fatal: false,
+    fatality: "The formula is drawn as its source text and the rest of the brief is unaffected."
+  },
+  E_FORMULA_EMPTY: {
+    severity: "error",
+    summary: "A formula (`$$`) or one of its groups (`{}`) holds nothing.",
+    template: "This {part} is empty; write what it should hold.",
+    spec: "docs/brief-language.md",
+    fatal: false,
+    fatality: "The formula is drawn as its source text and the rest of the brief is unaffected."
+  },
   // A warning and not an error, because the brief still means what the author meant: the
   // `\` is dropped and the line breaks once, as every block line does (ADR 0109). It says so
   // because the `\` used to add an empty line, and an author who wrote it for that gets told.
@@ -20913,6 +21005,18 @@ var diagnosticCodes = {
     severity: "warning",
     summary: "A line of a directive body ends in a `\\` and another line of its indented block follows, which already starts a new line.",
     template: "Every line of an indented block already starts a new line; this \\ is not needed.",
+    spec: "docs/brief-language.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
+  // A warning and not an error, because the line is valid: since TYTO-708 a text line at
+  // column 0 is a body line of the directive above (ADR 0202). One that starts with a single
+  // `:` and a name is most likely a directive missing a colon, and reading it as text without
+  // a word would turn a typo into a silent change of the artwork.
+  W_LIKELY_DIRECTIVE: {
+    severity: "warning",
+    summary: "A body line at column 0 starts with a single `:` and a name, which reads like a directive missing a colon; it is kept as text.",
+    template: "'{line}' is read as text; a directive starts with ::.",
     spec: "docs/brief-language.md",
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
@@ -21447,6 +21551,16 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "Nothing of that plan is written, and no recipe state is committed."
   },
+  // ADR 0219: one Apply of every plan of an `apply together` recipe, refused before any write or
+  // stopped at the first cell that does not go through.
+  E_RECIPE_APPLY_TOGETHER: {
+    severity: "error",
+    summary: "'apply together' did not apply every plan: it was refused before any write, or it stopped at a cell whose Apply did not go through.",
+    template: "'apply together' {problem}.",
+    spec: "docs/adr/0219-apply-together-applies-a-runs-plans-in-order-against-the-renames-above.md",
+    fatal: false,
+    fatality: "The plans below the cell it names are not applied and wait for the next run; what the cells above it applied stays applied."
+  },
   // `to-brief` checks its rows against the template and the workspace before it plans, so a
   // brief that could not compile, or a file outside the workspace, is never shown (ADR 0172).
   E_RECIPE_BRIEF: {
@@ -21456,6 +21570,46 @@ var diagnosticCodes = {
     spec: "docs/adr/0172-to-brief-writes-one-brief-per-row-through-host-ports.md",
     fatal: false,
     fatality: "That cell has no plan and the cells after it do not run; earlier cells keep theirs. Nothing is written."
+  },
+  // `to-delivery` checks its arguments and the workspace before it plans; a row it cannot write
+  // is refused in the cell's note instead, and the other rows still plan (ADR 0210).
+  E_RECIPE_DELIVERY: {
+    severity: "error",
+    summary: "'to-delivery' cannot plan its delivery records: an unknown field, a field a recipe may not write, a host that writes none, or a folder it may not write.",
+    template: "'to-delivery' {problem}.",
+    spec: "docs/adr/0210-a-delivery-may-exist-without-a-brief-and-a-record-says-what-it-is.md",
+    fatal: false,
+    fatality: "That cell has no plan and the cells after it do not run; earlier cells keep theirs. Nothing is written."
+  },
+  // `rename-exports` checks its arguments and the workspace before it plans; a delivery it cannot
+  // rename is refused in the cell's note instead, and the others still plan (ADR 0218).
+  E_RECIPE_RENAME_EXPORTS: {
+    severity: "error",
+    summary: "'rename-exports' cannot plan the names of the deliveries' exports: a missing argument, a host that renames no files, or a folder it may not write.",
+    template: "'rename-exports' {problem}.",
+    spec: "docs/adr/0218-a-deliverys-exports-are-renamed-by-its-stem-as-a-plan.md",
+    fatal: false,
+    fatality: "That cell has no plan and the cells after it do not run; earlier cells keep theirs. Nothing is renamed."
+  },
+  // `deliveries` reads the records back as rows only inside a trusted workspace; a record it
+  // cannot read is a warning, and the other folders still read (ADR 0211).
+  E_RECIPE_DELIVERIES: {
+    severity: "error",
+    summary: "'deliveries' cannot read the delivery records: the host reads none, the recipe is in no trusted workspace, or fields= lists a name a declared field cannot have.",
+    template: "'deliveries' {problem}.",
+    spec: "docs/adr/0211-the-delivery-folder-is-the-source-and-inbound-fields-name-a-winner.md",
+    fatal: false,
+    fatality: "That cell has no table and the cells after it do not run; earlier cells keep theirs. Nothing is written."
+  },
+  // `with-deliveries` reads the same records beside rows already there, through the same checks,
+  // and refuses to shadow a column the table has (TYTO-779, ADR 0213's note of 2026-11-18).
+  E_RECIPE_WITH_DELIVERIES: {
+    severity: "error",
+    summary: "'with-deliveries' cannot bring the delivery records: the host reads none, the recipe is in no trusted workspace, fields= lists a name a declared field cannot have, or the table already has a column it would add.",
+    template: "'with-deliveries' {problem}.",
+    spec: "docs/adr/0213-a-delivery-record-keeps-the-fields-a-recipe-declares.md",
+    fatal: false,
+    fatality: "That cell has no table and the cells after it do not run; earlier cells keep theirs. Nothing is written."
   },
   // `call` checks its address, its credential and its body before it plans, so a request to a
   // host the workspace did not allow is never shown, let alone sent (ADR 0193).
@@ -21716,6 +21870,35 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
+  // TYTO-771: one unreadable record leaves its delivery out of the table, never the others.
+  W_RECIPE_DELIVERY_RECORD: {
+    severity: "warning",
+    summary: "'deliveries' or 'with-deliveries' left a delivery out: its record is not one, its folder could not be read, or another folder has its key or its name.",
+    template: "'{verb}' left out {folder}: {problem}.",
+    spec: "docs/adr/0211-the-delivery-folder-is-the-source-and-inbound-fields-name-a-winner.md",
+    fatal: false,
+    fatality: "The other deliveries are still read; nothing is written."
+  },
+  // TYTO-776: a declared field two edits from a fixed one is likely a slip, and would otherwise
+  // be written silently as a new field next to the one the recipe meant.
+  W_RECIPE_DELIVERY_FIELD_NEAR: {
+    severity: "warning",
+    summary: "'to-delivery' declares a field whose name is two edits or fewer from a fixed field's, which may be a slip.",
+    template: "'{field}' is declared as a new field; did you mean '{fixed}'?",
+    spec: "docs/adr/0213-a-delivery-record-keeps-the-fields-a-recipe-declares.md",
+    fatal: false,
+    fatality: "The field is still declared and written; a name may be close to a fixed one."
+  },
+  // TYTO-776: a record written by hand before declared fields may hold another shape under
+  // `fields`; it still reads, and the warning says why its declared columns are empty.
+  W_RECIPE_DELIVERY_FIELDS_UNREAD: {
+    severity: "warning",
+    summary: "'deliveries' or 'with-deliveries' read a record whose 'fields' is not a map of text, and gave it no declared fields.",
+    template: "'{verb}' read {folder} without its declared fields: its 'fields' is not a map of text.",
+    spec: "docs/adr/0213-a-delivery-record-keeps-the-fields-a-recipe-declares.md",
+    fatal: false,
+    fatality: "The delivery is still read, with its fixed fields; nothing is written."
+  },
   // TYTO-714: with clear=push, a sheet read that lost a column reads as every cell cleared. The
   // run holds those clears instead of clearing the remote side, and says which column.
   W_RECIPE_DECIDE_CLEAR_COLUMN: {
@@ -21804,6 +21987,22 @@ function rememberOrigin(run2, range) {
 }
 function originOf(run2) {
   return origins.get(run2);
+}
+function linearReading(math) {
+  const grouped = (items) => {
+    const reading = linearReading(items);
+    return [...reading].length === 1 ? reading : `(${reading})`;
+  };
+  return math.map((item) => {
+    switch (item.kind) {
+      case "text":
+        return item.text;
+      case "fraction":
+        return `${grouped(item.numerator)}/${grouped(item.denominator)}`;
+      case "scripts":
+        return (item.subscript === void 0 ? "" : `_${grouped(item.subscript)}`) + (item.superscript === void 0 ? "" : `^${grouped(item.superscript)}`);
+    }
+  }).join("");
 }
 function isStandaloneOperator(word) {
   return OPERATOR_WORD.test(word);
@@ -22032,6 +22231,24 @@ function styled(inline, style2, options) {
       return style2;
   }
 }
+function breakOf(inline, spacing) {
+  return inline.paragraph === true && spacing !== void 0 && Number.isFinite(spacing) && spacing > 0 ? { kind: "break", space: spacing } : { kind: "break" };
+}
+function formulaOf(inline, style2) {
+  const { font: font2, size, weight, style: slant, color: color2 } = run(inline.source, style2);
+  const produced = {
+    kind: "formula",
+    text: linearReading(inline.math),
+    math: [...inline.math],
+    font: font2,
+    size,
+    weight,
+    style: slant,
+    color: color2
+  };
+  rememberOrigin(produced, inline.range);
+  return produced;
+}
 function append(target, text2, style2, options) {
   for (const inline of text2) {
     switch (inline.kind) {
@@ -22044,7 +22261,10 @@ function append(target, text2, style2, options) {
         break;
       }
       case "break":
-        target.push({ kind: "break" });
+        target.push(breakOf(inline, options.paragraphSpacing));
+        break;
+      case "formula":
+        target.push(formulaOf(inline, style2));
         break;
       default:
         append(target, inline.children, styled(inline, style2, options), options);
@@ -22070,7 +22290,7 @@ function imageValue(context, name) {
   return typeof value === "object" && "hash" in value ? value : void 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.46.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.55.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22172,7 +22392,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-YTKBFVV6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22209,7 +22429,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.11.9/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.15.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -22710,9 +22930,15 @@ function withBreakBefore(runs, paragraph, piece) {
       continue;
     }
     const start = offset;
-    if (current === paragraph) offset += run2.text.length;
+    if (current === paragraph) offset += textOf(run2).length;
     if (done || current !== paragraph || cut2 >= offset) {
       result.push(run2);
+      continue;
+    }
+    if (run2.kind === "formula") {
+      trimLast(result);
+      result.push({ kind: "break" }, run2);
+      done = true;
       continue;
     }
     const at2 = cut2 - start;
@@ -22731,11 +22957,15 @@ function trimLast(runs) {
   if (text2 === "") runs.pop();
   else runs[runs.length - 1] = { ...last, text: text2 };
 }
+var FORMULA_TEXT = "\uFFFC";
+function textOf(run2) {
+  return run2.kind === "formula" ? FORMULA_TEXT : run2.text;
+}
 function linesOf(runs) {
   const lines2 = [""];
   for (const run2 of runs) {
     if (run2.kind === "break") lines2.push("");
-    else lines2[lines2.length - 1] += run2.text;
+    else lines2[lines2.length - 1] += textOf(run2);
   }
   return lines2;
 }
@@ -22773,7 +23003,7 @@ function plain(text2) {
   }).join("");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22816,7 +23046,7 @@ function signatureOf(kit) {
   return kit.signature ?? PLACEHOLDER_SIGNATURE;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.5.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");

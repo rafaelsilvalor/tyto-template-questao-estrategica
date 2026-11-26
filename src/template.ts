@@ -37,6 +37,7 @@ import { drawLogo, oneInk, sealOf, signatureOf } from '@tyto/house-style';
 import {
   ORPHAN_LIMITS,
   at,
+  block,
   highlightsFromValues,
   imageHeight,
   keepTogether,
@@ -49,6 +50,7 @@ import {
   sealed,
   settle,
   spaceByWeight,
+  table,
 } from '@tyto/template-kit';
 
 import type {
@@ -60,7 +62,7 @@ import type {
   TextRun,
 } from '@tyto/core';
 import type { NodeDraft, TextDraft } from '@tyto/core/template';
-import type { HighlightSpec } from '@tyto/template-kit';
+import type { HighlightSpec, TableRow, TableStyle } from '@tyto/template-kit';
 
 /* -------------------------------------------------------------------------- the words -- */
 
@@ -759,6 +761,13 @@ export function statement(
 /**
  * A run of options as one block, numbered on from `first` (`alternativa-3` after two), each read
  * for an orphan as one of the slide's extras, which it is appended to.
+ *
+ * Laid out by the kit's `table` (TYTO-882): a letter column as wide as the step to the words, a
+ * words column taking the rest, a row per option. Each option is placed by its capitals' top,
+ * and the table places boxes, so the table stands one cap offset above the first option's
+ * capitals and every text sits at the top of its cell: a row is the option's lines, and the gap
+ * between rows is the pitch less the line the pitch is measured from. Letter and words share a
+ * size and a line height, so they share the offset.
  */
 function optionsPiece(
   context: TemplateContext,
@@ -781,17 +790,17 @@ function optionsPiece(
     weight: look.optionWeight,
     color: ink(look.bodyInk),
   };
-  const wordsAt = (index: number, capTop: number): TextDraft =>
+  const wordsAt = (index: number, capTop: number, x = textX, w = width): TextDraft =>
     redrawn(
       richAt(
         `alternativa-${first + index + 1}`,
         options[index]?.words ?? [],
         style,
         {
-          x: textX,
+          x,
           capTop,
           lineHeight: look.optionLineHeight,
-          width,
+          width: w,
           letterSpacing: tuning.extras[offset + index] ?? 0,
         },
         marked,
@@ -804,32 +813,51 @@ function optionsPiece(
     return lineCount(context, words, option.words, optionSize, width);
   });
   const leading = optionSize * look.optionLineHeight;
-  /** Each option's capitals' top, from the first's. */
-  const topsFrom = (top: number): number[] => {
-    const tops: number[] = [];
-    let at = top;
-    for (const count of counts) {
-      tops.push(at);
-      at += (count - 1) * leading + look.optionPitch * scale;
-    }
-    return tops;
+  const capInLine = capOffset(optionSize, look.optionLineHeight);
+  const letterWidth = textX - look.optionX;
+  const layout: TableStyle = {
+    columns: [
+      { name: 'option-letter', width: letterWidth, valign: 'top' },
+      { name: 'option-words', width: 'fill', valign: 'top' },
+    ],
+    kinds: { option: {} },
+    rowGap: look.optionPitch * scale - leading,
+    minRowHeight: 0,
+    names: { table: 'options', row: 'option' },
   };
-  const lastTop = topsFrom(0).at(-1) ?? 0;
+  const rows = options.map((option, index): TableRow => ({
+    kind: 'option',
+    cells: [
+      {
+        // The words' lines set the row; a letter alone is one line, and an option with no
+        // words keeps the pitch it always had.
+        sizesRow: false,
+        draw: (cell) =>
+          block(
+            cell,
+            leading,
+            textAt(`letra-${first + index + 1}`, option.letter, {
+              x: 0,
+              capTop: capInLine,
+              size: optionSize,
+              weight: look.letterWeight,
+              color: ink(look.letterInk),
+              lineHeight: look.optionLineHeight,
+            }),
+          ),
+      },
+      {
+        draw: (cell) => block(cell, counts[index]! * leading, wordsAt(index, capInLine, 0, cell)),
+      },
+    ],
+  }));
   const lastCount = counts.at(-1) ?? 1;
+  const lastTop = counts
+    .slice(0, -1)
+    .reduce((at, count) => at + (count - 1) * leading + look.optionPitch * scale, 0);
   return {
     height: lastTop + (lastCount - 1) * leading + optionSize * CAP_HEIGHT,
-    place: (top) =>
-      topsFrom(top).flatMap((capTop, index) => [
-        textAt(`letra-${first + index + 1}`, options[index]?.letter ?? '', {
-          x: look.optionX,
-          capTop,
-          size: optionSize,
-          weight: look.letterWeight,
-          color: ink(look.letterInk),
-          lineHeight: look.optionLineHeight,
-        }),
-        wordsAt(index, capTop),
-      ]),
+    place: (top) => [at(look.optionX, top - capInLine, table(layout, rows, letterWidth + width))],
   };
 }
 

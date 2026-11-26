@@ -42,11 +42,24 @@ const sized: AssetResolver = {
   },
 };
 
-function nodes(node: Frame | SceneNode): SceneNode[] {
+/**
+ * Every node of a slide, each at its place on the slide: a group moves what it holds, so its
+ * offset is summed into its children's. Since TYTO-882 an option sits in a cell of a row of the
+ * options' table, and its own transform is only its place in the cell.
+ */
+function nodes(node: Frame | SceneNode, x = 0, y = 0): SceneNode[] {
+  const own =
+    'kind' in node && node.kind !== undefined
+      ? ({
+          ...node,
+          transform: { ...node.transform, x: x + node.transform.x, y: y + node.transform.y },
+        } as SceneNode)
+      : undefined;
+  const origin = own?.transform ?? { x, y };
   const children = 'children' in node ? node.children : [];
   return [
-    ...('kind' in node && node.kind !== undefined ? [node as SceneNode] : []),
-    ...children.flatMap(nodes),
+    ...(own === undefined ? [] : [own]),
+    ...children.flatMap((child) => nodes(child, origin.x, origin.y)),
   ];
 }
 

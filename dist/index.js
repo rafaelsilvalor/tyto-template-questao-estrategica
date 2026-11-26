@@ -23248,6 +23248,83 @@ function shift(draft, dx, dy) {
   if (dx === 0 && dy === 0) return draft;
   return at(dx, dy, block(0, 0, draft));
 }
+function buttonWidth(button) {
+  const { style: style2 } = button;
+  const leading = button.leading === void 0 ? 0 : button.leading.width + style2.gap;
+  const trailing = style2.trailing?.width ?? 0;
+  return style2.padding.left + leading + button.words.width + style2.padding.right + trailing;
+}
+function buttonRow(buttons, options) {
+  const widths = buttons.map(buttonWidth);
+  const natural = widths.reduce((sum, each) => sum + each, 0) + options.gap * Math.max(0, buttons.length - 1);
+  const room = options.width ?? natural;
+  if (options.report !== void 0) reportOverflow(options.report, natural, room);
+  const spare = Math.max(0, room - natural);
+  const justified = options.arrange === "justified" && buttons.length > 1;
+  const gap2 = justified ? options.gap + spare / (buttons.length - 1) : options.gap;
+  const height = buttons.reduce((tallest, each) => Math.max(tallest, each.style.height), 0);
+  let x = justified ? 0 : spare / 2;
+  const children = buttons.map((button, index) => {
+    const drawn2 = drawButton(button, widths[index]);
+    const placed = at(x, (height - drawn2.height) / 2, drawn2);
+    x += drawn2.width + gap2;
+    return placed;
+  });
+  return block(
+    Math.max(room, natural),
+    height,
+    group({ name: options.name ?? "buttons", children })
+  );
+}
+function drawButton(button, width) {
+  const { style: style2 } = button;
+  const h = style2.height;
+  const middle = (piece) => (h - piece.height) / 2;
+  const children = [];
+  if (style2.fill !== void 0) {
+    children.push(
+      rect({ name: "pill", size: { w: width, h }, radius: style2.radius, fill: solid(style2.fill) })
+    );
+  }
+  if (style2.trailing !== void 0) {
+    const box = style2.trailing;
+    children.push(
+      rect({
+        name: "end",
+        size: { w: box.width, h },
+        radius: box.radius,
+        fill: solid(box.fill),
+        transform: { x: width - box.width, y: 0 }
+      })
+    );
+    if (button.trailing !== void 0) {
+      children.push(
+        at(
+          width - box.width + (box.width - button.trailing.width) / 2,
+          middle(button.trailing),
+          button.trailing
+        )
+      );
+    }
+  }
+  if (style2.stroke !== void 0) {
+    children.push(
+      rect({
+        name: "outline",
+        size: { w: width, h },
+        radius: style2.radius,
+        stroke: { paint: solid(style2.stroke.color), width: style2.stroke.width, align: "inside" }
+      })
+    );
+  }
+  let x = style2.padding.left;
+  if (button.leading !== void 0) {
+    children.push(at(x, middle(button.leading), button.leading));
+    x += button.leading.width + style2.gap;
+  }
+  children.push(at(x, middle(button.words), button.words));
+  return block(width, h, group({ name: button.name ?? "button", children }));
+}
 var NO_FILL = solid({ r: 0, g: 0, b: 0, a: 0 });
 
 // node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.8.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
@@ -24613,23 +24690,39 @@ var BUTTON = {
   arrow: { x: 269, y: 998, w: 57, h: 37, shaft: 10 }
 };
 function coverButton(inks) {
-  return [
-    rect({
-      name: "botao",
-      size: { w: BUTTON.w, h: BUTTON.h },
-      radius: BUTTON.h / 2,
-      fill: solid(inks.fill),
-      transform: { x: BUTTON.x, y: BUTTON.y }
-    }),
-    textAt("botao-texto", BUTTON_WORD, {
-      x: BUTTON.wordX,
-      capTop: BUTTON.wordCapTop,
-      size: BUTTON.wordSize,
-      weight: BOLD3,
-      color: inks.ink
-    }),
-    arrow(BUTTON.arrow, inks.ink)
-  ];
+  const padding = BUTTON.wordX - BUTTON.x;
+  const words = group({
+    children: [
+      textAt("botao-texto", BUTTON_WORD, {
+        x: 0,
+        capTop: BUTTON.wordCapTop - BUTTON.y,
+        size: BUTTON.wordSize,
+        weight: BOLD3,
+        color: inks.ink
+      }),
+      arrow(
+        { ...BUTTON.arrow, x: BUTTON.arrow.x - BUTTON.wordX, y: BUTTON.arrow.y - BUTTON.y },
+        inks.ink
+      )
+    ]
+  });
+  const row = buttonRow(
+    [
+      {
+        name: "botao",
+        style: {
+          height: BUTTON.h,
+          radius: BUTTON.h / 2,
+          fill: inks.fill,
+          padding: { left: padding, right: 0 },
+          gap: 0
+        },
+        words: block(BUTTON.w - padding, BUTTON.h, words)
+      }
+    ],
+    { gap: 0, name: "cover-button" }
+  );
+  return [at(BUTTON.x, BUTTON.y, row)];
 }
 var COVER_ORNAMENTS = [
   { x: 974, y: 215 },
@@ -24732,25 +24825,57 @@ var ICON_ROWS = [
 var ROW_TEXT = { x: 443, size: 29.98, lineHeight: 38.68 / 29.98, letterSpacing: 0.6 };
 var ICON_STROKE = 4.5;
 function iconSignOff(inks) {
-  return ICON_ROWS.flatMap((row) => [
-    vector({
-      name: row.name,
-      geometry: { kind: "path", d: row.d, fillRule: "nonzero" },
-      size: { w: row.icon.w, h: row.icon.h },
-      fill: solid(inks.inside),
-      stroke: { paint: solid(inks.ink), width: ICON_STROKE, align: "center" },
-      transform: { x: row.icon.x, y: row.icon.y }
-    }),
-    textAt(`${row.name}-texto`, row.words, {
-      x: ROW_TEXT.x,
-      capTop: row.capTop,
-      size: ROW_TEXT.size,
-      weight: row.weight,
-      color: inks.ink,
-      lineHeight: ROW_TEXT.lineHeight,
-      letterSpacing: ROW_TEXT.letterSpacing
-    })
-  ]);
+  const left = Math.min(...ICON_ROWS.map((row) => row.icon.x));
+  const top = ICON_ROWS[0]?.icon.y ?? 0;
+  const layout = {
+    columns: [
+      { name: "icon", width: ROW_TEXT.x - left, valign: "top" },
+      { name: "words", width: "fill", valign: "top" }
+    ],
+    kinds: { row: {} },
+    rowGap: 0,
+    minRowHeight: 0,
+    names: { table: "sign-off-rows", row: "row" }
+  };
+  const rows = ICON_ROWS.map((row, index) => {
+    const rowTop = row.icon.y;
+    const height = (ICON_ROWS[index + 1]?.icon.y ?? rowTop + row.icon.h) - rowTop;
+    return {
+      kind: "row",
+      cells: [
+        {
+          draw: (width) => block(
+            width,
+            height,
+            vector({
+              name: row.name,
+              geometry: { kind: "path", d: row.d, fillRule: "nonzero" },
+              size: { w: row.icon.w, h: row.icon.h },
+              fill: solid(inks.inside),
+              stroke: { paint: solid(inks.ink), width: ICON_STROKE, align: "center" },
+              transform: { x: row.icon.x - left, y: 0 }
+            })
+          )
+        },
+        {
+          draw: (width) => block(
+            width,
+            height,
+            textAt(`${row.name}-texto`, row.words, {
+              x: 0,
+              capTop: row.capTop - rowTop,
+              size: ROW_TEXT.size,
+              weight: row.weight,
+              color: inks.ink,
+              lineHeight: ROW_TEXT.lineHeight,
+              letterSpacing: ROW_TEXT.letterSpacing
+            })
+          )
+        }
+      ]
+    };
+  });
+  return [at(left, top, table(layout, rows, SLIDE_WIDTH - left))];
 }
 
 // src/index.ts

@@ -18,9 +18,18 @@
  * maintainer's engineering PSD), in the slide's pixels, a text placed by its capitals' top.
  */
 
-import { colorValue, imageValue, frame, image, rect, solid, vector } from '@tyto/core/template';
+import {
+  colorValue,
+  imageValue,
+  frame,
+  group,
+  image,
+  rect,
+  solid,
+  vector,
+} from '@tyto/core/template';
 import { accentOf, drawLogo, oneInk, sealOf, signatureOf } from '@tyto/house-style';
-import { at, sealed } from '@tyto/template-kit';
+import { at, block, buttonRow, sealed, table } from '@tyto/template-kit';
 
 import {
   BLACK,
@@ -49,6 +58,7 @@ import {
 import type { ArrowBox, ExamLook, Ink, Look, MarkColors } from './template.js';
 import type { BrandKit, TemplateBuild, TemplateContext } from '@tyto/core';
 import type { NodeDraft, TextDraft } from '@tyto/core/template';
+import type { TableRow, TableStyle } from '@tyto/template-kit';
 
 /* -------------------------------------------------------------------------- the words -- */
 
@@ -309,7 +319,7 @@ function cover(context: TemplateContext, ink: Ink, accent: string, lift: number)
 }
 
 /** The cover's "Confira" button, the reference's: a pill, its word and an arrow. */
-const BUTTON = {
+export const BUTTON = {
   x: 80,
   y: 979,
   w: 280,
@@ -320,25 +330,49 @@ const BUTTON = {
   arrow: { x: 269, y: 998, w: 57, h: 37, shaft: 10 },
 } as const;
 
-/** The cover's "Confira" button: the pill in `fill`, its word and arrow in `ink`. */
+/**
+ * The cover's "Confira" button: the pill in `fill`, its word and arrow in `ink`.
+ *
+ * One button of the kit's `buttonRow` (TYTO-881). The word is placed by its capitals, so its
+ * block is the pill's full height and the word sits at its own capitals inside it.
+ */
 export function coverButton(inks: { readonly fill: string; readonly ink: string }): NodeDraft[] {
-  return [
-    rect({
-      name: 'botao',
-      size: { w: BUTTON.w, h: BUTTON.h },
-      radius: BUTTON.h / 2,
-      fill: solid(inks.fill),
-      transform: { x: BUTTON.x, y: BUTTON.y },
-    }),
-    textAt('botao-texto', BUTTON_WORD, {
-      x: BUTTON.wordX,
-      capTop: BUTTON.wordCapTop,
-      size: BUTTON.wordSize,
-      weight: BOLD,
-      color: inks.ink,
-    }),
-    arrow(BUTTON.arrow, inks.ink),
-  ];
+  const padding = BUTTON.wordX - BUTTON.x;
+  // The arrow rides in the words' block, at the reference's place, until the kit's buttons take
+  // a trailing piece with no box (TYTO-884): an end box in the pill's own fill paints the pill's
+  // rounded end twice, and 106 edge pixels of the cover came out darker (measured, TYTO-881).
+  const words = group({
+    children: [
+      textAt('botao-texto', BUTTON_WORD, {
+        x: 0,
+        capTop: BUTTON.wordCapTop - BUTTON.y,
+        size: BUTTON.wordSize,
+        weight: BOLD,
+        color: inks.ink,
+      }),
+      arrow(
+        { ...BUTTON.arrow, x: BUTTON.arrow.x - BUTTON.wordX, y: BUTTON.arrow.y - BUTTON.y },
+        inks.ink,
+      ),
+    ],
+  });
+  const row = buttonRow(
+    [
+      {
+        name: 'botao',
+        style: {
+          height: BUTTON.h,
+          radius: BUTTON.h / 2,
+          fill: inks.fill,
+          padding: { left: padding, right: 0 },
+          gap: 0,
+        },
+        words: block(BUTTON.w - padding, BUTTON.h, words),
+      },
+    ],
+    { gap: 0, name: 'cover-button' },
+  );
+  return [at(BUTTON.x, BUTTON.y, row)];
 }
 
 /* ------------------------------------------------------------------------- the frame -- */
@@ -488,23 +522,60 @@ const ICON_STROKE = 4.5;
  * its words.
  */
 export function iconSignOff(inks: { readonly ink: string; readonly inside: string }): NodeDraft[] {
-  return ICON_ROWS.flatMap((row) => [
-    vector({
-      name: row.name,
-      geometry: { kind: 'path', d: row.d, fillRule: 'nonzero' },
-      size: { w: row.icon.w, h: row.icon.h },
-      fill: solid(inks.inside),
-      stroke: { paint: solid(inks.ink), width: ICON_STROKE, align: 'center' },
-      transform: { x: row.icon.x, y: row.icon.y },
-    }),
-    textAt(`${row.name}-texto`, row.words, {
-      x: ROW_TEXT.x,
-      capTop: row.capTop,
-      size: ROW_TEXT.size,
-      weight: row.weight,
-      color: inks.ink,
-      lineHeight: ROW_TEXT.lineHeight,
-      letterSpacing: ROW_TEXT.letterSpacing,
-    }),
-  ]);
+  // Laid out by the kit's `table` (TYTO-881): an icon column and a words column, a row per icon.
+  // The reference's rows are not evenly spaced and its icons not on one line, so each row is as
+  // tall as the step to the next one's top and each cell draws at the reference's own offsets.
+  const left = Math.min(...ICON_ROWS.map((row) => row.icon.x));
+  const top = ICON_ROWS[0]?.icon.y ?? 0;
+  const layout: TableStyle = {
+    columns: [
+      { name: 'icon', width: ROW_TEXT.x - left, valign: 'top' },
+      { name: 'words', width: 'fill', valign: 'top' },
+    ],
+    kinds: { row: {} },
+    rowGap: 0,
+    minRowHeight: 0,
+    names: { table: 'sign-off-rows', row: 'row' },
+  };
+  const rows = ICON_ROWS.map((row, index): TableRow => {
+    const rowTop = row.icon.y;
+    const height = (ICON_ROWS[index + 1]?.icon.y ?? rowTop + row.icon.h) - rowTop;
+    return {
+      kind: 'row',
+      cells: [
+        {
+          draw: (width) =>
+            block(
+              width,
+              height,
+              vector({
+                name: row.name,
+                geometry: { kind: 'path', d: row.d, fillRule: 'nonzero' },
+                size: { w: row.icon.w, h: row.icon.h },
+                fill: solid(inks.inside),
+                stroke: { paint: solid(inks.ink), width: ICON_STROKE, align: 'center' },
+                transform: { x: row.icon.x - left, y: 0 },
+              }),
+            ),
+        },
+        {
+          draw: (width) =>
+            block(
+              width,
+              height,
+              textAt(`${row.name}-texto`, row.words, {
+                x: 0,
+                capTop: row.capTop - rowTop,
+                size: ROW_TEXT.size,
+                weight: row.weight,
+                color: inks.ink,
+                lineHeight: ROW_TEXT.lineHeight,
+                letterSpacing: ROW_TEXT.letterSpacing,
+              }),
+            ),
+        },
+      ],
+    };
+  });
+  return [at(left, top, table(layout, rows, SLIDE_WIDTH - left))];
 }
